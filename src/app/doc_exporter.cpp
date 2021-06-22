@@ -167,6 +167,7 @@ public:
     m_extrude(extrude),
     m_isLinked(false),
     m_isDuplicated(false),
+    m_isEmpty(false), // KCC: #JsonExportEmpty
     m_originalSize(sprite->width(), sprite->height()),
     m_trimmedBounds(0, 0, sprite->width(), sprite->height()),
     m_inTextureBounds(std::make_shared<gfx::Rect>(0, 0, sprite->width(), sprite->height())) {
@@ -229,8 +230,11 @@ public:
     return m_trimmedBounds.isEmpty();
   }
 
+  bool isTrulyEmpty() const { return m_isEmpty; } // KCC: #JsonExportEmpty
+
   void setLinked() { m_isLinked = true; }
   void setDuplicated() { m_isDuplicated = true; }
+  void setEmpty() { m_isEmpty = true; }// KCC: #JsonExportEmpty
 
   ImageRef createRender(ImageBufferPtr& imageBuf) {
     ASSERT(m_sprite);
@@ -301,6 +305,7 @@ private:
   bool m_extrude;
   bool m_isLinked;
   bool m_isDuplicated;
+  bool m_isEmpty; // KCC: #JsonExportEmpty
   gfx::Size m_originalSize;
   gfx::Rect m_trimmedBounds;
   SharedRectPtr m_inTextureBounds;
@@ -1002,6 +1007,10 @@ void DocExporter::captureSamples(Samples& samples,
       if (!alreadyTrimmed && m_trimSprite)
         sample.setTrimmedBounds(spriteBounds);
 
+      if (!cel)
+      {
+        sample.setEmpty();
+      }
       samples.addSample(sample);
 
       DX_TRACE("DX:   - Sample:",
@@ -1280,6 +1289,7 @@ void DocExporter::createDataFile(const Samples& samples,
        << "\"y\": " << frameBounds.y + nonExtrudedPosition << ", "
        << "\"w\": " << frameBounds.w + nonExtrudedSize << ", "
        << "\"h\": " << frameBounds.h + nonExtrudedSize << " },\n"
+       << "    \"empty\": " << (sample.isTrulyEmpty() ? "true" : "false") << ",\n" // KCC: #JsonExportEmpty
        << "    \"rotated\": false,\n"
        << "    \"trimmed\": " << (sample.trimmed() ? "true": "false") << ",\n"
        << "    \"spriteSourceSize\": { "
