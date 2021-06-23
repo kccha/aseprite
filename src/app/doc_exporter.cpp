@@ -1278,6 +1278,15 @@ void DocExporter::createDataFile(const Samples& samples,
     gfx::Rect spriteSourceBounds = sample.trimmedBounds();
     gfx::Rect frameBounds = sample.inTextureBounds();
 
+    Layer* sampleLayer = sample.layer();
+
+    // KCC: #JsonExportLayer
+    std::string layerName = "INVALID";
+    if (sampleLayer)
+    {
+      layerName = escape_for_json(sampleLayer->name());
+    }
+    // KCC_END
     if (filename_as_key)
       os << "   \"" << escape_for_json(sample.filename()) << "\": {\n";
     else if (filename_as_attr)
@@ -1301,6 +1310,8 @@ void DocExporter::createDataFile(const Samples& samples,
        << "\"w\": " << srcSize.w << ", "
        << "\"h\": " << srcSize.h << " },\n"
        << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"
+       << "    \"layer\": " << "\"" << layerName << "\",\n" // KCC: #JsonExportLayer
+       << "    \"frame\": " << sample.frame() << ",\n" // KCC: #JsonExportFrame
        << "   }";
 
     if (++it != samples.end())
