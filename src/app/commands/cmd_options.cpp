@@ -27,6 +27,7 @@
 #include "app/resource_finder.h"
 #include "app/tx.h"
 #include "app/ui/color_button.h"
+#include "app/ui/main_window.h"
 #include "app/ui/pref_widget.h"
 #include "app/ui/separator_in_view.h"
 #include "app/ui/skin/skin_theme.h"
@@ -37,10 +38,14 @@
 #include "base/version.h"
 #include "doc/image.h"
 #include "fmt/format.h"
-#include "os/display.h"
 #include "os/system.h"
+#include "os/window.h"
 #include "render/render.h"
 #include "ui/ui.h"
+
+#if ENABLE_SENTRY
+#include "app/sentry_wrapper.h"
+#endif
 
 #include "options.xml.h"
 
@@ -98,13 +103,13 @@ class OptionsWindow : public app::gen::Options {
 
   class ColorSpaceItem : public ListItem {
   public:
-    ColorSpaceItem(const os::ColorSpacePtr& cs)
+    ColorSpaceItem(const os::ColorSpaceRef& cs)
       : ListItem(cs->gfxColorSpace()->name()),
         m_cs(cs) {
     }
-    os::ColorSpacePtr cs() const { return m_cs; }
+    os::ColorSpaceRef cs() const { return m_cs; }
   private:
-    os::ColorSpacePtr m_cs;
+    os::ColorSpaceRef m_cs;
   };
 
   class ThemeItem : public ListItem {
@@ -331,7 +336,7 @@ public:
 
     // If the platform supports native cursors...
     if ((int(os::instance()->capabilities()) &
-         int(os::Capabilities::CustomNativeMouseCursor)) != 0) {
+         int(os::Capabilities::CustomMouseCursor)) != 0) {
       if (m_pref.cursor.useNativeCursor())
         nativeCursor()->setSelected(true);
       nativeCursor()->Click.connect([this]{ onNativeCursorChange(); });
@@ -490,6 +495,13 @@ public:
     else
       locateCrashFolder()->setVisible(false);
 
+    // Share crashdb
+#if ENABLE_SENTRY
+    shareCrashdb()->setSelected(Sentry::consentGiven());
+#else
+    shareCrashdb()->setVisible(false);
+#endif
+
     // Undo preferences
     limitUndo()->Click.connect([this]{ onLimitUndoCheck(); });
     limitUndo()->setSelected(m_pref.undo.sizeLimit() != 0);
@@ -540,6 +552,15 @@ public:
       msg->setPropagateToChildren(msg);
       sendMessage(msg);
     }
+
+    // Share crashdb
+#if ENABLE_SENTRY
+    if (shareCrashdb()->isSelected())
+      Sentry::giveConsent();
+    else
+      Sentry::revokeConsent();
+    App::instance()->mainWindow()->updateConsentCheckbox();
+#endif
 
     // Update language
     Strings::instance()->setCurrentLanguage(
@@ -641,7 +662,6 @@ public:
 
           if (j == winCs) {
             name = gfxCs->name();
-            os::instance()->setDisplaysColorSpace(cs);
             break;
           }
           ++j;
@@ -651,7 +671,7 @@ public:
         break;
       }
     }
-    update_displays_color_profile_from_preferences();
+    update_windows_color_profile_from_preferences();
 
     // Change sprite grid bounds
     if (m_context && m_context->activeDocument()) {
@@ -723,7 +743,7 @@ public:
       m_pref.tablet.api(tabletStr);
       m_pref.experimental.loadWintabDriver(wintabState);
 
-      manager()->getDisplay()
+      manager()->display()
         ->setInterpretOneFingerGestureAsMouseMovement(
           oneFingerAsMouseMovement()->isSelected());
 
@@ -843,10 +863,8 @@ private:
 
   void updateScreenScaling() {
     ui::Manager* manager = ui::Manager::getDefault();
-    os::Display* display = manager->getDisplay();
     os::instance()->setGpuAcceleration(m_pref.general.gpuAcceleration());
-    display->setScale(m_pref.general.screenScale());
-    manager->setDisplay(display);
+    manager->updateAllDisplaysWithNewScale(m_pref.general.screenScale());
   }
 
   void onApply() {
@@ -858,9 +876,9 @@ private:
 
   void onNativeCursorChange() {
     bool state =
-      // If the platform supports native cursors...
+      // If the platform supports custom cursors...
       (((int(os::instance()->capabilities()) &
-         int(os::Capabilities::CustomNativeMouseCursor)) != 0) &&
+         int(os::Capabilities::CustomMouseCursor)) != 0) &&
        // If the native cursor option is not selec
        !nativeCursor()->isSelected());
 
@@ -1608,7 +1626,7 @@ private:
   std::string m_restoreThisTheme;
   int m_restoreScreenScaling;
   int m_restoreUIScaling;
-  std::vector<os::ColorSpacePtr> m_colorSpaces;
+  std::vector<os::ColorSpaceRef> m_colorSpaces;
   std::string m_templateTextForDisplayCS;
 };
 

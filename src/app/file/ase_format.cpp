@@ -526,7 +526,8 @@ static void ase_file_write_start_chunk(FILE* f, dio::AsepriteFrameHeader* frame_
   chunk->type = type;
   chunk->start = ftell(f);
 
-  fseek(f, chunk->start+6, SEEK_SET);
+  fputl(0, f);
+  fputw(0, f);
 }
 
 static void ase_file_write_close_chunk(FILE* f, dio::AsepriteChunk* chunk)
@@ -868,7 +869,7 @@ static void ase_file_write_color_profile(FILE* f,
                                          dio::AsepriteFrameHeader* frame_header,
                                          const doc::Sprite* sprite)
 {
-  const gfx::ColorSpacePtr& cs = sprite->colorSpace();
+  const gfx::ColorSpaceRef& cs = sprite->colorSpace();
   if (!cs)                      // No color
     return;
 

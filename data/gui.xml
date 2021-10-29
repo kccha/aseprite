@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Aseprite -->
-<!-- Copyright (C) 2018-2020  Igara Studio S.A. -->
+<!-- Copyright (C) 2018-2021  Igara Studio S.A. -->
 <!-- Copyright (C) 2001-2018  David Capello -->
 <gui>
   <!-- Keyboard shortcuts -->
@@ -128,6 +128,7 @@
       <key command="Refresh" shortcut="F5" />
       <key command="TogglePreview" shortcut="F7" />
       <key command="FullscreenPreview" shortcut="F8" />
+      <key command="FullscreenMode" shortcut="F11" mac="Cmd+Ctrl+F" />
       <key command="ShowGrid" shortcut="Ctrl+'" mac="Cmd+'" />
       <key command="ShowPixelGrid" shortcut="Ctrl+Shift+'" mac="Cmd+Shift+'" />
       <key command="SnapToGrid" shortcut="Shift+S" />
@@ -636,6 +637,8 @@
         <menu id="scripts_menu" text="@.file_scripts" group="file_scripts">
           <item command="OpenScriptFolder" text="@.file_open_script_folder" />
           <item command="Refresh" text="@.file_rescan_script_folder" />
+          <separator />
+          <item command="Debugger" text="@.file_debugger" />
         </menu>
         <separator group="file_app" />
         <item command="Exit" text="@.file_exit" />
@@ -929,7 +932,8 @@
           <param name="switch" value="true" />
         </item>
         <item command="TogglePreview" text="@.view_preview" />
-        <item command="AdvancedMode" text="@.view_full_screen_mode" />
+        <item command="AdvancedMode" text="@.view_advanced_mode" />
+        <item command="FullscreenMode" text="@.view_full_screen_mode" />
         <item command="FullscreenPreview" text="@.view_full_screen_preview" />
         <item command="Home" text="@.view_home" group="view_controls" />
         <separator />

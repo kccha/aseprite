@@ -408,9 +408,9 @@ void Theme::paintLayer(Graphics* g,
 
     case Style::Layer::Type::kText:
       if (layer.color() != gfx::ColorNone) {
-        os::Font* oldFont = g->font();
+        os::FontRef oldFont = AddRef(g->font());
         if (style->font())
-          g->setFont(style->font());
+          g->setFont(AddRef(style->font()));
 
         if (layer.align() & WORDWRAP) {
           gfx::Rect textBounds = rc;
@@ -546,7 +546,8 @@ void Theme::measureLayer(const Widget* widget,
 
     case Style::Layer::Type::kText:
       if (layer.color() != gfx::ColorNone) {
-        os::Font* font = (style->font() ? style->font(): widget->font());
+        os::Font* font = (style->font() ? style->font():
+                                          widget->font());
         gfx::Size textSize(Graphics::measureUITextLength(widget->text(), font),
                            font->height());
 
@@ -746,7 +747,7 @@ void Theme::drawSlices(Graphics* g, os::Surface* sheet,
 void Theme::drawTextBox(Graphics* g, Widget* widget,
                         int* w, int* h, gfx::Color bg, gfx::Color fg)
 {
-  View* view = View::getView(widget);
+  View* view = (g ? View::getView(widget): nullptr);
   char* text = const_cast<char*>(widget->text().c_str());
   char* beg, *end;
   int x1, y1;

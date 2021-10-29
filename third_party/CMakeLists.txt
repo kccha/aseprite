@@ -36,6 +36,12 @@ endif()
 if(WITH_WEBP_SUPPORT)
   set(WEBP_BUILD_EXTRAS OFF CACHE BOOL "Build extras.")
   add_subdirectory(libwebp)
+
+  if(NOT USE_SHARED_LIBPNG)
+    add_dependencies(webp ${PNG_LIBRARY})
+    add_dependencies(webpdemux ${PNG_LIBRARY})
+    add_dependencies(libwebpmux ${PNG_LIBRARY})
+  endif()
 endif()
 
 if(NOT USE_SHARED_TINYXML)
@@ -44,7 +50,19 @@ endif()
 
 if(REQUIRE_CURL AND NOT USE_SHARED_CURL)
   set(BUILD_RELEASE_DEBUG_DIRS ON BOOL)
+  set(BUILD_CURL_EXE OFF CACHE BOOL "Set to ON to build curl executable.")
+
+  # SSL/TLS support (use native libraries only)
   set(CMAKE_USE_OPENSSL OFF CACHE BOOL "Use OpenSSL code. Experimental")
+  set(CMAKE_USE_LIBSSH2 OFF CACHE BOOL "Use libSSH2")
+  if(WIN32)
+    set(CMAKE_USE_SCHANNEL ON CACHE BOOL "enable Windows native SSL/TLS")
+  elseif(APPLE)
+    set(CMAKE_USE_SECTRANSP ON CACHE BOOL "enable Apple OS native SSL/TLS")
+  else()
+    # TODO Linux?
+  endif()
+
   add_subdirectory(curl)
 endif()
 
@@ -159,4 +177,12 @@ if(ENABLE_SCRIPTING)
   target_include_directories(lauxlib PUBLIC lua)
   target_include_directories(lualib PUBLIC lua)
   target_link_libraries(lauxlib lua)
+
+  # ixwebsocket
+  if(ENABLE_WEBSOCKET)
+    set(IXWEBSOCKET_INSTALL OFF CACHE BOOL "Install IXWebSocket")
+    add_subdirectory(IXWebSocket)
+    target_include_directories(ixwebsocket PUBLIC)
+  endif()
+
 endif()

@@ -60,10 +60,10 @@
 #include "base/split_string.h"
 #include "doc/sprite.h"
 #include "fmt/format.h"
-#include "os/display.h"
 #include "os/error.h"
 #include "os/surface.h"
 #include "os/system.h"
+#include "os/window.h"
 #include "render/render.h"
 #include "ui/intern.h"
 #include "ui/ui.h"
@@ -95,6 +95,9 @@ namespace {
 
 class ConsoleEngineDelegate : public script::EngineDelegate {
 public:
+  void onConsoleError(const char* text) override {
+    onConsolePrint(text);
+  }
   void onConsolePrint(const char* text) override {
     m_console.printf("%s\n", text);
   }
@@ -303,7 +306,8 @@ int App::initialize(const AppOptions& options)
     ui::set_mouse_cursor_scale(preferences().cursor.cursorScale());
     ui::set_mouse_cursor(kArrowCursor);
 
-    ui::Manager::getDefault()->invalidate();
+    auto manager = ui::Manager::getDefault();
+    manager->invalidate();
 
     // Create the main window.
     m_mainWindow.reset(new MainWindow);
@@ -321,8 +325,15 @@ int App::initialize(const AppOptions& options)
     // Show the main window (this is not modal, the code continues)
     m_mainWindow->openWindow();
 
-    // Redraw the whole screen.
-    ui::Manager::getDefault()->invalidate();
+    // To know the initial manager size we call to
+    // Manager::updateAllDisplaysWithNewScale(...) so we receive a
+    // Manager::onNewDisplayConfiguration() (which will update the
+    // bounds of the manager for first time).  This is required so if
+    // the OpenFileCommand (called when we're processing the CLI with
+    // OpenBatchOfFiles) shows a dialog to open a sequence of files,
+    // the dialog is centered correctly to the manager bounds.
+    const int scale = Preferences::instance().general.screenScale();
+    manager->updateAllDisplaysWithNewScale(scale);
   }
 #endif  // ENABLE_UI
 
@@ -358,7 +369,7 @@ void App::run()
   if (isGui()) {
 #if LAF_WINDOWS
     // How to interpret one finger on Windows tablets.
-    ui::Manager::getDefault()->getDisplay()
+    ui::Manager::getDefault()->display()
       ->setInterpretOneFingerGestureAsMouseMovement(
         preferences().experimental.oneFingerAsMouseMovement());
 #endif
@@ -366,23 +377,20 @@ void App::run()
 #if LAF_LINUX
     // Setup app icon for Linux window managers
     try {
-      os::Display* display = os::instance()->defaultDisplay();
+      os::Window* display = os::instance()->defaultWindow();
       os::SurfaceList icons;
 
       for (const int size : { 32, 64, 128 }) {
         ResourceFinder rf;
         rf.includeDataDir(fmt::format("icons/ase{0}.png", size).c_str());
         if (rf.findFirst()) {
-          os::Surface* surf = os::instance()->loadRgbaSurface(rf.filename().c_str());
+          os::SurfaceRef surf = os::instance()->loadRgbaSurface(rf.filename().c_str());
           if (surf)
             icons.push_back(surf);
         }
       }
 
       display->setIcons(icons);
-
-      for (auto surf : icons)
-        surf->dispose();
     }
     catch (const std::exception&) {
       // Just ignore the exception, we couldn't change the app icon, no
@@ -411,8 +419,10 @@ void App::run()
     checkUpdate.launch();
 #endif
 
+#if !ENABLE_SENTRY
     app::SendCrash sendCrash;
     sendCrash.search();
+#endif
 
     // Keep the console alive the whole program execute (just in case
     // we've to print errors).
@@ -668,7 +678,7 @@ void App::updateDisplayTitleBar()
   }
 
   title += defaultTitle;
-  os::instance()->defaultDisplay()->setTitle(title);
+  os::instance()->defaultWindow()->setTitle(title);
 }
 
 InputChain& App::inputChain()

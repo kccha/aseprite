@@ -145,7 +145,12 @@ if(ENABLE_SCRIPTING)
     set(scripting_files_ui
       commands/cmd_developer_console.cpp
       commands/cmd_open_script_folder.cpp
+      commands/debugger.cpp
       ui/devconsole_view.cpp)
+  endif()
+  if(ENABLE_WEBSOCKET)
+    set(scripting_files_ws
+      script/websocket_class.cpp)
   endif()
   set(scripting_files
     commands/cmd_run_script.cpp
@@ -159,6 +164,7 @@ if(ENABLE_SCRIPTING)
     script/color_space_class.cpp
     script/dialog_class.cpp
     script/engine.cpp
+    script/events_class.cpp
     script/frame_class.cpp
     script/frames_class.cpp
     script/image_class.cpp
@@ -190,6 +196,7 @@ if(ENABLE_SCRIPTING)
     script/values.cpp
     script/version_class.cpp
     shell.cpp
+    ${scripting_files_ws}
     ${scripting_files_ui})
 endif()
 
@@ -221,10 +228,10 @@ if(ENABLE_UI)
     commands/cmd_duplicate_view.cpp
     commands/cmd_exit.cpp
     commands/cmd_eyedropper.cpp
-    commands/cmd_fill_and_stroke.cpp
     commands/cmd_fit_screen.cpp
     commands/cmd_frame_properties.cpp
     commands/cmd_frame_tag_properties.cpp
+    commands/cmd_fullscreen_mode.cpp
     commands/cmd_fullscreen_preview.cpp
     commands/cmd_goto_frame.cpp
     commands/cmd_goto_layer.cpp
@@ -401,6 +408,13 @@ if(ENABLE_UI)
   endif()
 endif()
 
+set(send_crash_files)
+if(ENABLE_SENTRY)
+  set(send_crash_files sentry_wrapper.cpp)
+else()
+  set(send_crash_files send_crash.cpp)
+endif()
+
 add_library(app-lib
   active_site_handler.cpp
   app.cpp
@@ -500,6 +514,7 @@ add_library(app-lib
   commands/cmd_color_quantization.cpp
   commands/cmd_crop.cpp
   commands/cmd_export_sprite_sheet.cpp
+  commands/cmd_fill_and_stroke.cpp
   commands/cmd_flatten_layers.cpp
   commands/cmd_flip.cpp
   commands/cmd_import_sprite_sheet.cpp
@@ -574,7 +589,6 @@ add_library(app-lib
   res/resources_loader.cpp
   resource_finder.cpp
   restore_visible_layers.cpp
-  send_crash.cpp
   shade.cpp
   site.cpp
   snap_to_grid.cpp
@@ -616,6 +630,7 @@ add_library(app-lib
   util/wrap_point.cpp
   xml_document.cpp
   xml_exception.cpp
+  ${send_crash_files}
   ${ui_app_files}
   ${app_platform_files}
   ${data_recovery_files}
@@ -666,6 +681,10 @@ endif()
 
 if(ENABLE_SCRIPTING)
   target_link_libraries(app-lib lua lauxlib lualib)
+
+  if(ENABLE_WEBSOCKET)
+    target_link_libraries(app-lib ixwebsocket)
+  endif()
 endif()
 
 if(ENABLE_UPDATER)
@@ -675,4 +694,13 @@ endif()
 if(ENABLE_STEAM)
   add_definitions(-DENABLE_STEAM)
   target_link_libraries(app-lib steam-lib)
+endif()
+
+if(ENABLE_SENTRY)
+  target_compile_definitions(app-lib PUBLIC
+    -DENABLE_SENTRY
+    -DSENTRY_BUILD_STATIC=1
+    -DSENTRY_DNS="${SENTRY_DNS}")
+  add_subdirectory(${SENTRY_DIR} sentry)
+  target_link_libraries(app-lib sentry)
 endif()

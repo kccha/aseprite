@@ -63,11 +63,13 @@ base::paths get_readable_extensions()
   return paths;
 }
 
-base::paths get_writable_extensions()
+base::paths get_writable_extensions(const int requiredFormatFlag)
 {
   base::paths paths;
   for (const FileFormat* format : *FileFormatsManager::instance()) {
-    if (format->support(FILE_SUPPORT_SAVE))
+    if (format->support(FILE_SUPPORT_SAVE) &&
+        (requiredFormatFlag == 0 ||
+         format->support(requiredFormatFlag)))
       format->getExtensions(paths);
   }
   return paths;
@@ -935,7 +937,7 @@ void FileOp::postLoad()
   }
 
   // What to do with the sprite color profile?
-  gfx::ColorSpacePtr spriteCS = sprite->colorSpace();
+  gfx::ColorSpaceRef spriteCS = sprite->colorSpace();
   app::gen::ColorProfileBehavior behavior =
     app::gen::ColorProfileBehavior::DISABLE;
 

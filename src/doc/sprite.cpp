@@ -159,7 +159,7 @@ void Sprite::setSize(int width, int height)
   m_spec.setSize(width, height);
 }
 
-void Sprite::setColorSpace(const gfx::ColorSpacePtr& colorSpace)
+void Sprite::setColorSpace(const gfx::ColorSpaceRef& colorSpace)
 {
   m_spec.setColorSpace(colorSpace);
   for (auto cel : uniqueCels())
@@ -195,6 +195,12 @@ bool Sprite::supportAlpha() const
 
 void Sprite::setTransparentColor(color_t color)
 {
+#if _DEBUG
+  if (colorMode() != ColorMode::INDEXED) {
+    ASSERT(color == 0);
+  }
+#endif // _DEBUG
+
   m_spec.setMaskColor(color);
 
   // Change the mask color of all images.

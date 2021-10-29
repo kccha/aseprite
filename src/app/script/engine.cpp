@@ -46,6 +46,9 @@ base::Chrono luaClock;
 // Stack of script filenames that are being executed.
 std::stack<std::string> current_script_dirs;
 
+// Just one debugger delegate is possible.
+DebuggerDelegate* g_debuggerDelegate = nullptr;
+
 class AddScriptFilename {
 public:
   AddScriptFilename(const std::string& fn) {
@@ -155,6 +158,7 @@ void register_color_space_class(lua_State* L);
 #ifdef ENABLE_UI
 void register_dialog_class(lua_State* L);
 #endif
+void register_events_class(lua_State* L);
 void register_frame_class(lua_State* L);
 void register_frames_class(lua_State* L);
 void register_image_class(lua_State* L);
@@ -180,6 +184,7 @@ void register_tag_class(lua_State* L);
 void register_tags_class(lua_State* L);
 void register_tool_class(lua_State* L);
 void register_version_class(lua_State* L);
+void register_websocket_class(lua_State* L);
 
 void set_app_params(lua_State* L, const Params& params);
 
@@ -386,6 +391,7 @@ Engine::Engine()
 #ifdef ENABLE_UI
   register_dialog_class(L);
 #endif
+  register_events_class(L);
   register_frame_class(L);
   register_frames_class(L);
   register_image_class(L);
@@ -411,6 +417,9 @@ Engine::Engine()
   register_tags_class(L);
   register_tool_class(L);
   register_version_class(L);
+#if ENABLE_WEBSOCKET
+  register_websocket_class(L);
+ #endif
 
   // Check that we have a clean start (without dirty in the stack)
   ASSERT(lua_gettop(L) == top);
@@ -438,7 +447,7 @@ bool Engine::evalCode(const std::string& code,
         lua_pcall(L, 0, 1, 0)) {
       const char* s = lua_tostring(L, -1);
       if (s)
-        onConsolePrint(s);
+        onConsoleError(s);
       ok = false;
       m_returnCode = -1;
     }
@@ -461,7 +470,7 @@ bool Engine::evalCode(const std::string& code,
     lua_pop(L, 1);
   }
   catch (const std::exception& ex) {
-    onConsolePrint(ex.what());
+    onConsoleError(ex.what());
     ok = false;
     m_returnCode = -1;
   }
@@ -486,7 +495,44 @@ bool Engine::evalFile(const std::string& filename,
 
   AddScriptFilename add(absFilename);
   set_app_params(L, params);
-  return evalCode(buf.str(), "@" + absFilename);
+
+  if (g_debuggerDelegate)
+    g_debuggerDelegate->startFile(absFilename, buf.str());
+
+  bool result = evalCode(buf.str(), "@" + absFilename);
+
+  if (g_debuggerDelegate)
+    g_debuggerDelegate->endFile(absFilename);
+
+  return result;
+}
+
+void Engine::startDebugger(DebuggerDelegate* debuggerDelegate)
+{
+  g_debuggerDelegate = debuggerDelegate;
+
+  lua_Hook hook = [](lua_State* L, lua_Debug* ar) {
+    int ret = lua_getinfo(L, "l", ar);
+    if (ret == 0 || ar->currentline < 0)
+      return;
+
+    g_debuggerDelegate->hook(L, ar);
+  };
+
+  lua_sethook(L, hook, LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT, 1);
+}
+
+void Engine::stopDebugger()
+{
+  lua_sethook(L, nullptr, 0, 0);
+}
+
+void Engine::onConsoleError(const char* text)
+{
+  if (text && m_delegate)
+    m_delegate->onConsoleError(text);
+  else
+    onConsolePrint(text);
 }
 
 void Engine::onConsolePrint(const char* text)

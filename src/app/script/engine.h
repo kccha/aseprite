@@ -1,5 +1,5 @@
 // Aseprite
-// Copyright (C) 2018-2020  Igara Studio S.A.
+// Copyright (C) 2018-2021  Igara Studio S.A.
 // Copyright (C) 2001-2018  David Capello
 //
 // This program is distributed under the terms of
@@ -23,10 +23,12 @@
 #include "gfx/fwd.h"
 
 #include <cstdio>
-#include <string>
+#include <functional>
 #include <map>
+#include <string>
 
 struct lua_State;
+struct lua_Debug;
 
 namespace base {
   class Version;
@@ -58,17 +60,20 @@ namespace app {
 
   namespace script {
 
-  enum class FileAccessMode {
-    Execute = 1,
-    Write = 2,
-    Read = 4,
-    Full = 7
-  };
-
   class EngineDelegate {
   public:
     virtual ~EngineDelegate() { }
+    virtual void onConsoleError(const char* text) = 0;
     virtual void onConsolePrint(const char* text) = 0;
+  };
+
+  class DebuggerDelegate {
+  public:
+    virtual ~DebuggerDelegate() { }
+    virtual void hook(lua_State* L, lua_Debug* ar) = 0;
+    virtual void startFile(const std::string& file,
+                           const std::string& content) = 0;
+    virtual void endFile(const std::string& file) = 0;
   };
 
   class Engine {
@@ -97,7 +102,11 @@ namespace app {
 
     lua_State* luaState() { return L; }
 
+    void startDebugger(DebuggerDelegate* debuggerDelegate);
+    void stopDebugger();
+
   private:
+    void onConsoleError(const char* text);
     void onConsolePrint(const char* text);
 
     lua_State* L;
@@ -121,6 +130,7 @@ namespace app {
     EngineDelegate* m_oldDelegate;
   };
 
+  void push_app_events(lua_State* L);
   int push_image_iterator_function(lua_State* L, const doc::Image* image, int extraArgIndex);
   void push_brush(lua_State* L, const doc::BrushRef& brush);
   void push_cel_image(lua_State* L, doc::Cel* cel);
@@ -136,6 +146,7 @@ namespace app {
   void push_palette(lua_State* L, doc::Palette* palette);
   void push_plugin(lua_State* L, Extension* ext);
   void push_sprite_cel(lua_State* L, doc::Cel* cel);
+  void push_sprite_events(lua_State* L, doc::Sprite* sprite);
   void push_sprite_frame(lua_State* L, doc::Sprite* sprite, doc::frame_t frame);
   void push_sprite_frames(lua_State* L, doc::Sprite* sprite);
   void push_sprite_frames(lua_State* L, doc::Sprite* sprite, const std::vector<doc::frame_t>& frames);
