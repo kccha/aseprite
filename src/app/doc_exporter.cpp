@@ -1309,9 +1309,9 @@ void DocExporter::createDataFile(const Samples& samples,
        << "    \"sourceSize\": { "
        << "\"w\": " << srcSize.w << ", "
        << "\"h\": " << srcSize.h << " },\n"
-       << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"
        << "    \"layer\": " << "\"" << layerName << "\",\n" // KCC: #JsonExportLayer
-       << "    \"frame\": " << sample.frame() << ",\n" // KCC: #JsonExportFrame
+       << "    \"frameIndex\": " << sample.frame() << ",\n" // KCC: #JsonExportFrame
+       << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"
        << "   }";
 
     if (++it != samples.end())
