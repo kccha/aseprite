@@ -188,6 +188,7 @@ public:
   const gfx::Rect& inTextureBounds() const { return *m_inTextureBounds; }
   const SharedRectPtr& sharedBounds() const { return m_inTextureBounds; }
 
+  int innerPadding() const { return m_innerPadding; } // KCC: #JsonExportInnerPadding
   gfx::Size requiredSize() const {
     // if extrude option is enabled, an extra pixel is needed for each side
     // left+right borders and top+bottom borders
@@ -1299,7 +1300,7 @@ void DocExporter::createDataFile(const Samples& samples,
        << "\"y\": " << frameBounds.y + nonExtrudedPosition << ", "
        << "\"w\": " << frameBounds.w + nonExtrudedSize << ", "
        << "\"h\": " << frameBounds.h + nonExtrudedSize << " },\n"
-       << "    \"empty\": " << (sample.isTrulyEmpty() ? "true" : "false") << ",\n" // KCC: #JsonExportEmpty
+       << "    \"empty\": " << ((m_splitLayers && sample.isTrulyEmpty()) ? "true" : "false") << ",\n" // KCC: #JsonExportEmpty
        << "    \"rotated\": false,\n"
        << "    \"trimmed\": " << (sample.trimmed() ? "true": "false") << ",\n"
        << "    \"spriteSourceSize\": { "
@@ -1310,6 +1311,7 @@ void DocExporter::createDataFile(const Samples& samples,
        << "    \"sourceSize\": { "
        << "\"w\": " << srcSize.w << ", "
        << "\"h\": " << srcSize.h << " },\n"
+       << "    \"innerPadding\": " << sample.innerPadding() << ",\n" // KCC: #JsonExportInnerPadding
        << "    \"layer\": " << "\"" << layerName << "\",\n" // KCC: #JsonExportLayer
        << "    \"frameIndex\": " << sample.frame() << ",\n" // KCC: #JsonExportFrame
        << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"

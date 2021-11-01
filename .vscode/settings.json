@@ -1,0 +1,10 @@
+{
+	"files.associations": {
+		"chrono": "cpp",
+		"condition_variable": "cpp",
+		"cstdlib": "cpp",
+		"filesystem": "cpp",
+		"mutex": "cpp",
+		"system_error": "cpp"
+	}
+}
