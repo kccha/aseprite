@@ -12,6 +12,7 @@
 #include "app/app.h"
 #include "app/cmd/set_layer_blend_mode.h"
 #include "app/cmd/set_layer_name.h"
+#include "app/cmd/set_layer_animation_group.h" // KCC: #LayerAnimationGroup
 #include "app/cmd/set_layer_opacity.h"
 #include "app/cmd/set_user_data.h"
 #include "app/commands/command.h"
@@ -100,6 +101,7 @@ public:
     mode()->addItem(new BlendModeItem("Luminosity", doc::BlendMode::HSL_LUMINOSITY));
 
     name()->Change.connect([this]{ onStartTimer(); });
+    layerAnimationGroup()->Change.connect([this]{ onStartTimer(); }); // KCC: #LayerAnimationGroup
     mode()->Change.connect([this]{ onStartTimer(); });
     opacity()->Change.connect([this]{ onStartTimer(); });
     m_timer.Tick.connect([this]{ onCommitChange(); });
@@ -137,6 +139,9 @@ private:
 
   std::string nameValue() const {
     return name()->text();
+  }
+  std::string animationGroupValue() const {
+    return layerAnimationGroup()->text();
   }
 
   BlendMode blendModeValue() const {
@@ -211,11 +216,13 @@ private:
     const int count = countLayers();
 
     std::string newName = nameValue();
+    std::string newAnimationGroup = animationGroupValue(); // KCC: #LayerAnimationGroup
     int newOpacity = opacityValue();
     BlendMode newBlendMode = blendModeValue();
 
     if ((count > 1) ||
         (count == 1 && m_layer && (newName != m_layer->name() ||
+                                   newAnimationGroup != m_layer->animationGroup() || // KCC: #LayerAnimationGroup
                                    m_userData != m_layer->userData() ||
                                    (m_layer->isImage() &&
                                     (newOpacity != static_cast<LayerImage*>(m_layer)->opacity() ||
@@ -234,6 +241,7 @@ private:
 
         const bool nameChanged = (newName != m_layer->name());
         const bool userDataChanged = (m_userData != m_layer->userData());
+        const bool animationGroupChanged = (newAnimationGroup != m_layer->animationGroup()); // KCC: #LayerAnimationGroup
         const bool opacityChanged = (m_layer->isImage() && newOpacity != static_cast<LayerImage*>(m_layer)->opacity());
         const bool blendModeChanged = (m_layer->isImage() && newBlendMode != static_cast<LayerImage*>(m_layer)->blendMode());
 
@@ -243,6 +251,11 @@ private:
 
           if (userDataChanged && m_userData != layer->userData())
             tx(new cmd::SetUserData(layer, m_userData));
+
+// KCC: #LayerAnimationGroup
+          if (animationGroupChanged && newAnimationGroup != layer->animationGroup())
+              tx(new cmd::SetLayerAnimationGroup(layer, newAnimationGroup));
+// KCC_END
 
           if (layer->isImage()) {
             if (opacityChanged && newOpacity != static_cast<LayerImage*>(layer)->opacity())

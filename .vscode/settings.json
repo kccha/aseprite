@@ -5,6 +5,21 @@
 		"cstdlib": "cpp",
 		"filesystem": "cpp",
 		"mutex": "cpp",
-		"system_error": "cpp"
+		"system_error": "cpp",
+		"xtree": "cpp",
+		"future": "cpp",
+		"locale": "cpp",
+		"memory": "cpp",
+		"ostream": "cpp",
+		"regex": "cpp",
+		"vector": "cpp",
+		"xhash": "cpp",
+		"xlocale": "cpp",
+		"xlocinfo": "cpp",
+		"xlocnum": "cpp",
+		"xloctime": "cpp",
+		"xstddef": "cpp",
+		"xstring": "cpp",
+		"*.rh": "cpp"
 	}
 }

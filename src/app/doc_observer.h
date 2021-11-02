@@ -52,6 +52,7 @@ namespace app {
 
     virtual void onLayerNameChange(DocEvent& ev) { }
     virtual void onLayerOpacityChange(DocEvent& ev) { }
+    virtual void onLayerAnimationGroupChange(DocEvent& ev) { }
     virtual void onLayerBlendModeChange(DocEvent& ev) { }
     virtual void onLayerRestacked(DocEvent& ev) { }
     virtual void onLayerMergedDown(DocEvent& ev) { }

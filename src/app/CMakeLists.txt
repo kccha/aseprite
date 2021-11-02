@@ -474,6 +474,9 @@ add_library(app-lib
   cmd/set_layer_blend_mode.cpp
   cmd/set_layer_flags.cpp
   cmd/set_layer_name.cpp
+  # KCC: #LayerAnimationGroup
+  cmd/set_layer_animation_group.cpp
+  # KCC_END
   cmd/set_layer_opacity.cpp
   cmd/set_mask.cpp
   cmd/set_mask_position.cpp

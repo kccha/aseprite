@@ -59,6 +59,11 @@ namespace doc {
     const std::string& name() const { return m_name; }
     void setName(const std::string& name) { m_name = name; }
 
+// KCC: #LayerAnimationGroup
+    const std::string& animationGroup() const { return m_animationGroup; }
+    void setAnimationGroup(const std::string& inAnimationGroup) { m_animationGroup = inAnimationGroup; }
+// KCC_END
+
     Sprite* sprite() const { return m_sprite; }
     LayerGroup* parent() const { return m_parent; }
     void setParent(LayerGroup* group) { m_parent = group; }
@@ -125,6 +130,7 @@ namespace doc {
 
   private:
     std::string m_name;           // layer name
+    std::string m_animationGroup; // KCC: #LayerAnimationGroup
     Sprite* m_sprite;             // owner of the layer
     LayerGroup* m_parent;        // parent layer
     LayerFlags m_flags;           // stack order cannot be changed
