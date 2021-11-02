@@ -1436,6 +1436,7 @@ void DocExporter::createDataFile(const Samples& samples,
     os << "\n  ]";
 // KCC_END
 
+
     bool firstLayer = true;
     os << ",\n"
        << "  \"layers\": [";
