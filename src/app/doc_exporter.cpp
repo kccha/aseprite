@@ -1416,10 +1416,36 @@ void DocExporter::createDataFile(const Samples& samples,
       }
     }
 
+// KCC: #LayerGroups
+    os << ",\n"
+       << "  \"layerGroups\": [";
+    bool firstLayerGroup = true;
+    for (Layer* layer : metaLayers) {
+
+      if (!layer->isGroup())
+      {
+        continue;
+      }
+      if (firstLayerGroup)
+        firstLayerGroup = false;
+      else
+        os << ",";
+      os << "\n   { \"name\": \"" << escape_for_json(layer->name()) << "\"";
+      os << " }";
+    }
+    os << "\n  ]";
+// KCC_END
+
     bool firstLayer = true;
     os << ",\n"
        << "  \"layers\": [";
     for (Layer* layer : metaLayers) {
+// KCC: #LayerGroups
+      if (layer->isGroup())
+      {
+        continue;
+      }
+// KCC_END
       if (firstLayer)
         firstLayer = false;
       else
