@@ -5,6 +5,8 @@
 		"cstdlib": "cpp",
 		"filesystem": "cpp",
 		"mutex": "cpp",
-		"system_error": "cpp"
+		"system_error": "cpp",
+		"future": "cpp",
+		"xlocale": "cpp"
 	}
 }
