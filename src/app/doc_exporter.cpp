@@ -168,8 +168,10 @@ public:
     m_isLinked(false),
     m_isDuplicated(false),
     m_isEmpty(false), // KCC: #JsonExportEmpty
+    m_hasPivot(false), // KCC: #Pivot
     m_originalSize(sprite->width(), sprite->height()),
     m_trimmedBounds(0, 0, sprite->width(), sprite->height()),
+    m_pivot(0, 0), // KCC: #Pivot
     m_inTextureBounds(std::make_shared<gfx::Rect>(0, 0, sprite->width(), sprite->height())) {
   }
 
@@ -221,6 +223,16 @@ public:
   void setSharedBounds(const SharedRectPtr& bounds) {
     m_inTextureBounds = bounds;
   }
+
+// KCC: #Pivot
+  void setPivot(const gfx::Point& pivot) {
+    m_hasPivot = true;
+    m_pivot = pivot;
+  }
+
+  bool hasPivot() const { return m_hasPivot; }
+  gfx::Point getPivot() const { return m_pivot; }
+// KCC_END
 
   bool isLinked() const { return m_isLinked; }
   bool isDuplicated() const { return m_isDuplicated; }
@@ -307,8 +319,10 @@ private:
   bool m_isLinked;
   bool m_isDuplicated;
   bool m_isEmpty; // KCC: #JsonExportEmpty
+  bool m_hasPivot; // KCC: #Pivot
   gfx::Size m_originalSize;
   gfx::Rect m_trimmedBounds;
+  gfx::Point m_pivot; // KCC: #Pivot
   SharedRectPtr m_inTextureBounds;
 };
 
@@ -861,6 +875,32 @@ void DocExporter::captureSamples(Samples& samples,
         (tag != nullptr));              // Has tag
     }
 
+    // KCC: #Pivot
+    const Layer* pivotLayer = nullptr;
+    if (layer && layer->parent())
+    {
+      const LayerList& parentLayerList = layer->parent()->layers();
+      for (const Layer* curLayer : parentLayerList)
+      {
+        if (curLayer == layer)
+        {
+          continue;
+        }
+
+        if (curLayer->name() == "_pivot")
+        {
+          pivotLayer = curLayer;
+        }
+      }
+    }
+
+    // Skip any pivot layers we don't want to export these
+    if (layer->name() == "_pivot")
+    {
+      continue;
+    }
+    // KCC_END
+
     gfx::Rect spriteBounds = sprite->bounds();
     if (m_trimSprite) {
       if (m_cache.spriteId == sprite->id() &&
@@ -937,6 +977,15 @@ void DocExporter::captureSamples(Samples& samples,
         // "done" variable can be false here, e.g. when we export a
         // frame tag and the first linked cel is outside the tag range.
         ASSERT(done || (!done && tag));
+      }
+
+      if (pivotLayer)
+      {
+        const Cel* pivotCel = pivotLayer->cel(frame);
+        if (pivotCel)
+        {
+          sample.setPivot(pivotCel->position());
+        }
       }
 
       bool alreadyTrimmed = false;
@@ -1313,8 +1362,19 @@ void DocExporter::createDataFile(const Samples& samples,
        << "\"h\": " << srcSize.h << " },\n"
        << "    \"innerPadding\": " << sample.innerPadding() << ",\n" // KCC: #JsonExportInnerPadding
        << "    \"layer\": " << "\"" << layerName << "\",\n" // KCC: #JsonExportLayer
-       << "    \"frameIndex\": " << sample.frame() << ",\n" // KCC: #JsonExportFrame
-       << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"
+       << "    \"frameIndex\": " << sample.frame() << ",\n"; // KCC: #JsonExportFrame
+
+    // KCC: #Pivot
+    if (sample.hasPivot())
+    {
+      gfx::Point pivot = sample.getPivot();
+      os << "    \"pivot\": { "
+         << "\"x\": " << pivot.x << ", "
+         << "\"y\": " << pivot.y << " },\n";
+    }
+    // KCC_END
+
+    os << "    \"duration\": " << sample.sprite()->frameDuration(sample.frame()) << "\n"
        << "   }";
 
     if (++it != samples.end())
@@ -1443,6 +1503,15 @@ void DocExporter::createDataFile(const Samples& samples,
     for (Layer* layer : metaLayers) {
 // KCC: #LayerGroups
       if (layer->isGroup())
+      {
+        continue;
+      }
+// KCC_END
+
+// KCC: #Pivot
+      // Don't export pivots
+			std::string curLayerName = layer->name();
+      if (curLayerName == "_pivot")
       {
         continue;
       }
