@@ -79,6 +79,19 @@ int Cel_get_position(lua_State* L)
   return 1;
 }
 
+// KCC: #LinkedCel
+int Cel_get_linkedCel(lua_State* L)
+{
+  const auto cel = get_docobj<Cel>(L, 1);
+  auto linkCel = cel->link();
+  if (linkCel)
+    push_docobj<Cel>(L, linkCel);
+  else
+    lua_pushnil(L);
+  return 1;
+}
+// KCC_END
+
 int Cel_get_bounds(lua_State* L)
 {
   const auto cel = get_docobj<Cel>(L, 1);
@@ -142,6 +155,7 @@ const Property Cel_properties[] = {
   { "opacity", Cel_get_opacity, Cel_set_opacity },
   { "color", UserData_get_color<Cel>, UserData_set_color<Cel> },
   { "data", UserData_get_text<Cel>, UserData_set_text<Cel> },
+  { "linkedCel", Cel_get_linkedCel, nullptr }, // KCC: #LinkedCel
   { nullptr, nullptr, nullptr }
 };
 

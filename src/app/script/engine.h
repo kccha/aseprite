@@ -136,6 +136,9 @@ namespace app {
   void push_cel_image(lua_State* L, doc::Cel* cel);
   void push_cels(lua_State* L, const doc::ObjectIds& cels);
   void push_cels(lua_State* L, doc::Layer* layer);
+// KCC: #NoDuplicates
+  void push_cels_no_duplicates(lua_State* L, doc::Layer* layer);
+// KCC_END
   void push_cels(lua_State* L, doc::Sprite* sprite);
   void push_color_space(lua_State* L, const gfx::ColorSpace& cs);
   void push_doc_range(lua_State* L, Site& site);

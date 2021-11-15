@@ -15,6 +15,7 @@
 #include "doc/image.h"
 #include "doc/primitives.h"
 #include "doc/sprite.h"
+#include "doc/images_map.h"
 
 #include <algorithm>
 #include <cstring>
@@ -272,6 +273,28 @@ void LayerImage::getCels(CelList& cels) const
   for (; it != end; ++it)
     cels.push_back(*it);
 }
+
+// KCC: #NoDuplicates
+void LayerImage::getCelsNoDuplicates(CelList& cels) const
+{
+  CelConstIterator it = getCelBegin();
+  CelConstIterator end = getCelEnd();
+
+  doc::ImagesMap duplicates;
+  for (; it != end; ++it)
+  {
+    const Cel* curCel = *it;
+
+    if (duplicates.find(curCel->imageRef()) != duplicates.end())
+    {
+      continue;
+    }
+
+    duplicates[curCel->imageRef()] = curCel->frame();
+    cels.push_back(*it);
+  }
+}
+// KCC_END
 
 Cel* LayerImage::getLastCel() const
 {

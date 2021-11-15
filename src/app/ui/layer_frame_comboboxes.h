@@ -34,6 +34,7 @@ namespace app {
   extern const char* kAllFrames;
   extern const char* kSelectedLayers;
   extern const char* kSelectedFrames;
+  extern const char* kAllNonDuplicateFrames;	// KCC: #NoDuplicates
 
   class LayerListItem : public ui::ListItem {
   public:

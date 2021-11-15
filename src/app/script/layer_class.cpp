@@ -215,6 +215,15 @@ int Layer_get_cels(lua_State* L)
   return 1;
 }
 
+// KCC: #NoDuplicates
+int Layer_get_cels_no_duplicates(lua_State* L)
+{
+  auto layer = get_docobj<Layer>(L, 1);
+  push_cels_no_duplicates(L, layer);
+  return 1;
+}
+// KCC_END
+
 int Layer_set_name(lua_State* L)
 {
   auto layer = get_docobj<Layer>(L, 1);
@@ -386,6 +395,9 @@ const Property Layer_properties[] = {
   { "isExpanded", Layer_get_isExpanded, Layer_set_isExpanded },
   { "isReference", Layer_get_isReference, nullptr },
   { "cels", Layer_get_cels, nullptr },
+// KCC: #NoDuplicates
+  { "celsNoDuplicates", Layer_get_cels_no_duplicates, nullptr },
+// KCC_END
   { "color", UserData_get_color<Layer>, UserData_set_color<Layer> },
   { "data", UserData_get_text<Layer>, UserData_set_text<Layer> },
   { nullptr, nullptr, nullptr }

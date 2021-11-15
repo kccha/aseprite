@@ -155,6 +155,7 @@ namespace doc {
 
     Cel* cel(frame_t frame) const override;
     void getCels(CelList& cels) const override;
+    void getCelsNoDuplicates(CelList& cels) const; // KCC: #NoDuplicates
     void displaceFrames(frame_t fromThis, frame_t delta) override;
 
     Cel* getLastCel() const;

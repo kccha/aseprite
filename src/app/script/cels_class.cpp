@@ -99,6 +99,17 @@ void push_cels(lua_State* L, Layer* layer)
   push_new<CelsObj>(L, cels);
 }
 
+// KCC: #NoDuplicates
+void push_cels_no_duplicates(lua_State* L, Layer* layer)
+{
+  CelList cels;
+  if (layer->isImage())
+    static_cast<LayerImage*>(layer)->getCelsNoDuplicates(cels);
+  push_new<CelsObj>(L, cels);
+}
+// KCC_END
+
+
 void push_cels(lua_State* L, const ObjectIds& cels)
 {
   push_new<CelsObj>(L, cels);

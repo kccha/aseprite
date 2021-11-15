@@ -17,14 +17,18 @@
 #include "doc/layer.h"
 #include "doc/selected_frames.h"
 #include "doc/selected_layers.h"
+#include "doc/cels_range.h"
+#include "doc/cel.h"
 #include "doc/sprite.h"
 #include "doc/tag.h"
+#include "doc/images_map.h"
 #include "ui/combobox.h"
 
 namespace app {
 
 const char* kAllLayers = "";
 const char* kAllFrames = "";
+const char* kAllNonDuplicateFrames = "**all-non-duplicate-frames**"; // KCC: #NoDuplicates
 const char* kSelectedLayers = "**selected-layers**";
 const char* kSelectedFrames = "**selected-frames**";
 
@@ -149,6 +153,38 @@ doc::Tag* calculate_selected_frames(const Site& site,
       selFrames.insert(site.frame(), site.frame());
     }
   }
+// KCC: #NoDuplicates
+  else if (framesValue == kAllNonDuplicateFrames) {
+    doc::ImagesMap duplicates;
+    const doc::Sprite* sprite = site.sprite();
+    int i = 0;
+    for (const auto cel : sprite->cels())
+    {
+      auto curLayer = cel->layer();
+
+
+      if (!curLayer || !curLayer->isVisible())
+      {
+        continue;
+      }
+
+      int curFrameIdx = cel->frame();
+      // doc::Image* curImage = cel->image();
+      if (duplicates.find(cel->imageRef()) != duplicates.end())
+      {
+        continue;
+      }
+
+      auto link = cel->link();
+      if (link && link->frame() < curFrameIdx)
+      {
+        continue;
+      }
+      selFrames.insert(cel->frame());
+      duplicates[cel->imageRef()] = curFrameIdx;
+    }
+  }
+// KCC_END
   else if (framesValue != kAllFrames) {
     tag = site.sprite()->tags().getByName(framesValue);
     if (tag)

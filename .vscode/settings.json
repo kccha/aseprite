@@ -7,6 +7,12 @@
 		"mutex": "cpp",
 		"system_error": "cpp",
 		"future": "cpp",
-		"xlocale": "cpp"
+		"xlocale": "cpp",
+		"xmemory": "cpp",
+		"xtree": "cpp",
+		"regex": "cpp",
+		"xiosbase": "cpp",
+		"memory": "cpp",
+		"type_traits": "cpp"
 	}
 }
