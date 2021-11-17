@@ -661,6 +661,176 @@ void SaveFileCopyAsNoDuplicatesCommand::moveToUndoState(Doc* doc,
 }
 // KCC_END
 
+// KCC: #SaveCopyAsSpecificFrames
+class SaveFileCopyAsSpecificFramesCommand : public SaveFileBaseCommand {
+public:
+  SaveFileCopyAsSpecificFramesCommand();
+
+protected:
+  void onLoadParams(const Params& params) override;
+  void onExecute(Context* context) override;
+private:
+  void moveToUndoState(Doc* doc,
+                       const undo::UndoState* state);
+};
+
+SaveFileCopyAsSpecificFramesCommand::SaveFileCopyAsSpecificFramesCommand()
+  : SaveFileBaseCommand(CommandId::SaveFileCopyAsSpecificFrames(), CmdRecordableFlag)
+{
+}
+
+void SaveFileCopyAsSpecificFramesCommand::onLoadParams(const Params& params)
+{
+  m_selFrames.clear(); // The base command does not clear, it probably should, but just fixing my issue for now.
+  SaveFileBaseCommand::onLoadParams(params);
+}
+
+void SaveFileCopyAsSpecificFramesCommand::onExecute(Context* context)
+{
+  Doc* doc = context->activeDocument();
+  std::string outputFilename = m_filename;
+  std::string layers = kAllLayers;
+  double xscale = 1.0;
+  double yscale = 1.0;
+  bool applyPixelRatio = false;
+  doc::AniDir aniDirValue = convert_string_to_anidir(m_aniDir);
+  bool isForTwitter = false;
+
+#if ENABLE_UI
+  if (m_useUI && context->isUIAvailable()) {
+    ExportFileWindow win(doc);
+    bool askOverwrite = true;
+
+    win.SelectOutputFile.connect(
+      [this, &win, &askOverwrite, context, doc]() -> std::string {
+        std::string result =
+          saveAsDialog(
+            context, "Export",
+            win.outputFilenameValue(), false, false,
+            (doc->isAssociatedToFile() ? doc->filename():
+                                         std::string()));
+        if (!result.empty())
+          askOverwrite = false; // Already asked in the file selector dialog
+
+        return result;
+      });
+
+    win.remapWindow();
+    load_window_pos(&win, "ExportFile");
+  again:;
+    const bool result = win.show();
+    save_window_pos(&win, "ExportFile");
+    if (!result)
+      return;
+
+    outputFilename = win.outputFilenameValue();
+
+    if (askOverwrite &&
+        base::is_file(outputFilename)) {
+      int ret = OptionalAlert::show(
+        Preferences::instance().exportFile.showOverwriteFilesAlert,
+        1, // Yes is the default option when the alert dialog is disabled
+        fmt::format(Strings::alerts_overwrite_files_on_export(),
+                    outputFilename));
+      if (ret != 1)
+        goto again;
+    }
+
+    // Save the preferences used to export the file, so if we open the
+    // window again, we will have the same options.
+    win.savePref();
+
+    layers = win.layersValue();
+    xscale = yscale = win.resizeValue();
+    applyPixelRatio = win.applyPixelRatio();
+    aniDirValue = win.aniDirValue();
+    isForTwitter = win.isForTwitter();
+  }
+#endif
+
+  // Pixel ratio
+  if (applyPixelRatio) {
+    doc::PixelRatio pr = doc->sprite()->pixelRatio();
+    xscale *= pr.w;
+    yscale *= pr.h;
+  }
+
+  // Apply scale
+  const undo::UndoState* undoState = nullptr;
+  bool undoResize = false;
+  if (xscale != 1.0 || yscale != 1.0) {
+    Command* resizeCmd = Commands::instance()->byId(CommandId::SpriteSize());
+    ASSERT(resizeCmd);
+    if (resizeCmd) {
+      int width = doc->sprite()->width();
+      int height = doc->sprite()->height();
+      int newWidth = int(double(width) * xscale);
+      int newHeight = int(double(height) * yscale);
+      if (newWidth < 1) newWidth = 1;
+      if (newHeight < 1) newHeight = 1;
+      if (width != newWidth || height != newHeight) {
+        doc->setInhibitBackup(true);
+        undoState = doc->undoHistory()->currentState();
+        undoResize = true;
+
+        Params params;
+        params.set("use-ui", "false");
+        params.set("width", base::convert_to<std::string>(newWidth).c_str());
+        params.set("height", base::convert_to<std::string>(newHeight).c_str());
+        params.set("resize-method", "nearest-neighbor"); // TODO add algorithm in the UI?
+        context->executeCommand(resizeCmd, params);
+      }
+    }
+  }
+
+  {
+    RestoreVisibleLayers layersVisibility;
+    if (context->isUIAvailable()) {
+      Site site = context->activeSite();
+
+      // Selected layers to export
+      calculate_visible_layers(site,
+                               layers,
+                               layersVisibility);
+
+      m_adjustFramesByTag = false;
+    }
+
+    base::ScopedValue<std::string> restoreAniDir(
+      m_aniDir,
+      convert_anidir_to_string(aniDirValue), // New value
+      m_aniDir);                             // Restore old value
+
+    // TODO This should be set as options for the specific encoder
+    GifEncoderDurationFix fixGif(isForTwitter);
+    PngEncoderOneAlphaPixel fixPng(isForTwitter);
+
+    saveDocumentInBackground(
+      context, doc, outputFilename, false);
+  }
+
+  // Undo resize
+  if (undoResize &&
+      undoState != doc->undoHistory()->currentState()) {
+    moveToUndoState(doc, undoState);
+    doc->setInhibitBackup(false);
+  }
+}
+
+void SaveFileCopyAsSpecificFramesCommand::moveToUndoState(Doc* doc,
+                                            const undo::UndoState* state)
+{
+  try {
+    DocWriter writer(doc, 100);
+    doc->undoHistory()->moveToState(state);
+    doc->generateMaskBoundaries();
+    doc->notifyGeneralUpdate();
+  }
+  catch (const std::exception& ex) {
+    Console::showException(ex);
+  }
+}
+// KCC_END
 
 Command* CommandFactory::createSaveFileCommand()
 {
@@ -684,4 +854,10 @@ Command* CommandFactory::createSaveFileCopyAsNoDuplicatesCommand()
 }
 // KCC_END
 
+// KCC: #SaveCopyAsSpecificFrames
+Command* CommandFactory::createSaveFileCopyAsSpecificFramesCommand()
+{
+  return new SaveFileCopyAsSpecificFramesCommand;
+}
+// KCC_END
 } // namespace app

@@ -279,6 +279,42 @@ int Sprite_saveCopyAsNoDuplicates(lua_State* L)
 }
 // KCC_END
 
+// KCC: #SpecificFrames
+int Sprite_saveCopyAsSpecificFrames(lua_State* L)
+{
+  std::string absFn;
+  bool result = false;
+  auto sprite = get_docobj<Sprite>(L, 1);
+  const char* fn = luaL_checkstring(L, 2);
+  const int start = lua_tointeger(L, 3);
+  const int end = lua_tointeger(L, 4);
+  if (fn && sprite) {
+    Doc* doc = static_cast<Doc*>(sprite->document());
+    app::Context* appCtx = App::instance()->context();
+    appCtx->setActiveDocument(doc);
+
+    absFn = base::get_absolute_path(fn);
+    if (!ask_access(L, absFn.c_str(), FileAccessMode::Write, ResourceType::File))
+      return luaL_error(L, "script doesn't have access to write file %s",
+                        absFn.c_str());
+
+    Command* saveCommand =
+      Commands::instance()->byId(CommandId::SaveFileCopyAsSpecificFrames());
+
+    Params params;
+    params.set("filename", absFn.c_str());
+    params.set("useUI", "false");
+    params.set("from-frame", base::convert_to<std::string>(start).c_str());
+    params.set("to-frame", base::convert_to<std::string>(end).c_str());
+    appCtx->executeCommand(saveCommand, params);
+
+    result = true;
+  }
+  lua_pushboolean(L, result);
+  return 1;
+}
+// KCC_END
+
 int Sprite_close(lua_State* L)
 {
   auto sprite = get_docobj<Sprite>(L, 1);
@@ -842,6 +878,9 @@ const luaL_Reg Sprite_methods[] = {
   { "saveCopyAs", Sprite_saveCopyAs },
 	// KCC: #NoDuplicates
   { "saveCopyAsNoDuplicates", Sprite_saveCopyAsNoDuplicates },
+	// KCC_END
+	// KCC: #SpecificFrames
+  { "saveCopyAsSpecificFrames", Sprite_saveCopyAsSpecificFrames },
 	// KCC_END
   { "close", Sprite_close },
   { "loadPalette", Sprite_loadPalette },

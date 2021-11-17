@@ -285,12 +285,24 @@ void LayerImage::getCelsNoDuplicates(CelList& cels) const
   {
     const Cel* curCel = *it;
 
-    if (duplicates.find(curCel->imageRef()) != duplicates.end())
+    const Cel* linkedCel = curCel->link();
+    // Consider linked cels duplicates
+    if (linkedCel && linkedCel->frame() < curCel->frame())
     {
       continue;
     }
 
-    duplicates[curCel->imageRef()] = curCel->frame();
+    // If a layer is continous then let's remove any duplicates. This is just a handy easy way
+    // to ignore any duplicates, but still see them in the editor
+    if (isContinuous())
+    {
+      if (duplicates.find(curCel->imageRef()) != duplicates.end())
+      {
+        continue;
+      }
+      duplicates[curCel->imageRef()] = curCel->frame();
+    }
+
     cels.push_back(*it);
   }
 }

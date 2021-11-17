@@ -169,19 +169,26 @@ doc::Tag* calculate_selected_frames(const Site& site,
       }
 
       int curFrameIdx = cel->frame();
-      // doc::Image* curImage = cel->image();
-      if (duplicates.find(cel->imageRef()) != duplicates.end())
+
+      // Consider linked cels duplicates
+      const Cel* linkedCel = cel->link();
+      if (linkedCel && linkedCel->frame() < curFrameIdx)
       {
         continue;
       }
 
-      auto link = cel->link();
-      if (link && link->frame() < curFrameIdx)
+      // If a layer is continous then let's remove any duplicates. This is just a handy easy way
+      // to ignore any duplicates, but still see them in the editor
+      if (curLayer->isContinuous())
       {
-        continue;
+        if (duplicates.find(cel->imageRef()) != duplicates.end())
+        {
+          continue;
+        }
+        duplicates[cel->imageRef()] = curFrameIdx;
       }
+
       selFrames.insert(cel->frame());
-      duplicates[cel->imageRef()] = curFrameIdx;
     }
   }
 // KCC_END
