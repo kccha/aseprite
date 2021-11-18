@@ -68,19 +68,9 @@ function hideAllLayers(layers)
     end
 end
 
-local function contains (table, value)
-    for _, item in ipairs(table) do
-        if item == value then
-            return true
-        end
-    end
-    return false
-end
-
 local function addQuotes(value)
     return "\"" .. value .. "\""
 end
-
 
 local function calculatePNGName(spriteFileName, slotName, skinName, frameNumber)
     return spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__" .. frameNumber
@@ -90,176 +80,173 @@ local function calculateAttachment(spriteFileName, slotName, skinName, pngName, 
     return "              " ..  string.format([[ "%s": { "name": "%s", "y" : 16, "width": %d, "height": %d }]], slotName .. frameNumber, pngName, width, height)
 end
 
-local function processGroupLayer(layers, skinData, skinsJson, index, slotName, sprite)
-    local outputDir = app.fs.filePath(sprite.filename)
+local function gatherSlotLayer(output, layer, sprite, skinName, directionName, slotName)
+    local attachments = {}
+    local attachmentFrameIdx = 1
+    local lastFrameNumber = 1
+    local attachmentData = {}
     local spriteFileName = app.fs.fileTitle(sprite.filename)
-    local separator = app.fs.pathSeparator
-    for j, subLayer in ipairs(layers) do
 
-        if (subLayer.isGroup) then
-            index = processGroupLayer(subLayer.layers, skinData, skinsJson, index, slotName, sprite)
-            goto subcontinue
-        end
-
-
-        local skinNameStart = string.find(subLayer.name, "%][^%]]*$")
-        if (not skinNameStart) then
-            goto subcontinue
-        end
-
-        local skinName = string.sub(subLayer.name, skinNameStart + 1)
-        if (not skinData[skinName]) then
-            skinData[skinName] = {}
-        end
-
-
-        local curSkinJson = "{\n"
-        curSkinJson = curSkinJson .. "  \"name\": " .. addQuotes(skinName) .. ",\n"
-        curSkinJson = curSkinJson .. "  \"attachments\": {\n"
-        curSkinJson = curSkinJson .. "      " .. addQuotes(slotName) .. ": {\n"
-        local attachments = {}
-        local attachmentFrameIdx = 1
-        local lastFrameNumber = 1
-        local attachmentData = {}
-        -- local attachmentDataIdx = 1
-
-        for celIdx, curCel in ipairs(subLayer.celsNoDuplicates) do
-            while attachmentFrameIdx < curCel.frameNumber do
-                local pngName = calculatePNGName(spriteFileName, slotName, skinName, lastFrameNumber)
-                attachments[attachmentFrameIdx] = calculateAttachment(spriteFileName, slotName, skinName, pngName, sprite.bounds.width, sprite.bounds.height, attachmentFrameIdx)
-                attachmentData[attachmentFrameIdx]= { slotName, pngName, attachmentFrameIdx }
-
-                attachmentFrameIdx = attachmentFrameIdx + 1
-            end
-
-
-            local pngName = spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__" .. curCel.frameNumber
-            attachments[attachmentFrameIdx] = calculateAttachment(spriteFileName, slotName, skinName, pngName, sprite.bounds.width, sprite.bounds.height, curCel.frameNumber)
-            attachmentData[attachmentFrameIdx]= { slotName, pngName, attachmentFrameIdx }
-            attachmentFrameIdx = attachmentFrameIdx + 1
-
-            lastFrameNumber = curCel.frameNumber
-
-            local pngPath = outputDir .. separator .. "images" .. separator .. pngName .. ".png"
-            -- print(pngPath)
-            subLayer.isVisible = true
-            sprite:saveCopyAsSpecificFrames(pngPath, curCel.frameNumber, curCel.frameNumber)
-            subLayer.isVisible = false
-        end
-
-        while attachmentFrameIdx <= #sprite.frames do
+    for celIdx, curCel in ipairs(layer.celsNoDuplicates) do
+        while attachmentFrameIdx < curCel.frameNumber do
             local pngName = calculatePNGName(spriteFileName, slotName, skinName, lastFrameNumber)
-            attachments[attachmentFrameIdx] = calculateAttachment(spriteFileName, slotName, skinName, pngName, sprite.bounds.width, sprite.bounds.height, attachmentFrameIdx)
-            attachmentData[attachmentFrameIdx]= { slotName, pngName, attachmentFrameIdx }
+            attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=attachmentFrameIdx, layer=layer, requiresPNGSave=false}
             attachmentFrameIdx = attachmentFrameIdx + 1
         end
 
-        skinData[skinName][slotName] = attachmentData
 
-        curSkinJson = curSkinJson .. table.concat(attachments, ",\n")
-        curSkinJson = curSkinJson .. "\n      }\n"
-        curSkinJson = curSkinJson .. "  }\n"
-        curSkinJson = curSkinJson .. "}\n"
+        local pngName = spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__" .. curCel.frameNumber
+        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=attachmentFrameIdx, layer=layer, requiresPNGSave=true}
+        attachmentFrameIdx = attachmentFrameIdx + 1
 
-        skinsJson[index] = curSkinJson
-        index = index + 1
-        ::subcontinue::
+        lastFrameNumber = curCel.frameNumber
+
+        -- local pngPath = outputDir .. separator .. "images" .. separator .. pngName .. ".png"
+        -- -- print(pngPath)
+        -- subLayer.isVisible = true
+        -- sprite:saveCopyAsSpecificFrames(pngPath, curCel.frameNumber, curCel.frameNumber)
+        -- subLayer.isVisible = false
     end
 
-    return index
+    while attachmentFrameIdx <= #sprite.frames do
+        local pngName = calculatePNGName(spriteFileName, slotName, skinName, lastFrameNumber)
+        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=attachmentFrameIdx, layer=layer, requiresPNGSave=false}
+        attachmentFrameIdx = attachmentFrameIdx + 1
+    end
+
+    return attachmentData
 end
 
-
---[[
-Captures each layer as a separate PNG.  Ignores hidden layers.
-layers: The flattened view of the sprite layers
-sprite: The active sprite
-outputDir: the directory the sprite is saved in
-visibilityStates: the prior state of each layer's visibility (true / false)
-]]
-function captureLayers(layers, sprite, visibilityStates)
-    hideAllLayers(layers)
-
-    local outputDir = app.fs.filePath(sprite.filename)
-    local spriteFileName = app.fs.fileTitle(sprite.filename)
-
-    local jsonFileName = outputDir .. app.fs.pathSeparator .. spriteFileName .. ".json"
-    json = io.open(jsonFileName, "w")
-
-    json:write('{')
-
-    -- skeleton
-    json:write([[ "skeleton": { "images": "images/" }, ]])
-
-
-    -- build arrays of json properties for skins and slots
-    -- we only include layers, not groups
-    local bonesJson = {}
-    local slotsJson = {}
-    local skinsJson = {}
-    local index = 1
-    local boneIdx = 1
-    local slotIdx = 1
-    bonesJson[boneIdx] = string.format([[ { "name": "root"}]])
-    boneIdx = boneIdx + 1
-
-    local directionVariations = {}
-    if (string.match(spriteFileName, "_SE") and string.match(spriteFileName, "_NE")) then
-        directionVariations[1] = "_SE"
-        directionVariations[2] = "_NE"
-    elseif (string.match(spriteFileName, "_SE")) then
-        directionVariations[1] = "_SE"
-    elseif (string.match(spriteFileName, "_NE")) then
-        directionVariations[1] = "_NE"
-    end
-    
-    
-    local separator = app.fs.pathSeparator
-    
-    local layerCels = {}
-
-    local skinData = {}
-    local skinDirections = {}
+local function gatherDirectionLayer(output, layers, sprite, skinName, directionName)
+    local directionData = {}
     for i, layer in ipairs(layers) do
-        if (not layer.isGroup) then
-            goto continue
-        end
-
-        if (string.match(layer.name, "%[ignore%]")) then
-            goto continue
-        end
 
         local slotName = string.match(layer.name, "%[slot%](%a+)")
         if (not slotName) then
-            goto continue
+            goto dircontinue
         end
 
-        bonesJson[boneIdx] = string.format([[ { "name": "%s", "parent": "root"}]], slotName)
-        boneIdx = boneIdx + 1
+        if (directionData[slotName]) then
+            print(string.format([[ Has duplicate slot(%s) for skin(%s) direction(%s) ]], slotName, skinName, directionName))
+            goto dircontinue
+        end
 
-        slotsJson[slotIdx] = string.format([[ { "name": "%s", "bone": "%s"}]], slotName, slotName)
-        slotIdx = slotIdx + 1
+        local attachmentData = gatherSlotLayer(output, layer, sprite, skinName, directionName, slotName)
 
-        index = processGroupLayer(layer.layers, skinData, skinsJson, index, slotName, sprite)
-        ::continue::
+        directionData[slotName] = attachmentData
+        ::dircontinue::
     end
 
+    return directionData
+end
+
+local function gatherSkinLayer(output, layers, sprite, skinName)
+    local skinData = {}
+    for i, layer in ipairs(layers) do
+        if (not layer.isGroup) then
+            goto skincontinue
+        end
+
+        local directionName = string.match(layer.name, "%[dir%](%a+)")
+        if (not directionName) then
+            goto skincontinue
+        end
+        if (skinData[directionName]) then
+            print(string.format([[ Has duplicate direction(%s) for skin(%s) ]], directionName, skinName))
+            goto skincontinue
+        end
+
+        local directionData = gatherDirectionLayer(output, layer.layers, sprite, skinName, directionName)
+        skinData[directionName] = directionData
+        ::skincontinue::
+    end
+
+    return skinData
+end
+local function gatherAllSlots(skelData)
+    local slotData = {}
+    local slotMap = {}
+    for skinName, skinData in pairs(skelData) do
+        for directionName, directionData in pairs(skinData) do
+            for slotName, attachmentData in pairs(directionData) do
+                if (not slotMap[slotName]) then
+                    slotMap[slotName] = true
+                    table.insert(slotData, slotName)
+                end
+            end
+        end
+    end
+
+    return slotData
+end
+local function tabs(count)
+    local str = ""
+    for i = 1, count do
+        str = str .. "  "
+    end
+    return str
+end
+local function calculateBonesJson(allSlots)
+    local boneStrings = {}
+
+	table.insert(boneStrings, tabs(1) .. '{ "name": "root" }')
+    for i, slotName in ipairs(allSlots) do
+        table.insert(boneStrings, tabs(1) .. string.format([[{ "name": "%s", "parent": "root"}]], slotName))
+    end
+
+    local finalBoneString = '"bones": [\n'
+    finalBoneString = finalBoneString ..  table.concat(boneStrings, ",\n")
+    finalBoneString = finalBoneString .. '\n]'
+
+    return finalBoneString
+end
+
+local function calculateSlotJson(allSlots)
+    local slotStrings = {}
+
+    for i, slotName in ipairs(allSlots) do
+        table.insert(slotStrings, tabs(1) .. string.format([[{ "name": "%s", "bone": "%s"}]], slotName, slotName))
+    end
+
+    local finalSlotString = '"slots": [\n'
+    finalSlotString = finalSlotString ..  table.concat(slotStrings, ",\n")
+    finalSlotString = finalSlotString .. '\n]'
+
+    return finalSlotString
+end
+
+local function processJson(skelData, sprite)
+    local outputDir = app.fs.filePath(sprite.filename)
+    local spriteFileName = app.fs.fileTitle(sprite.filename)
+    local jsonFileName = outputDir .. app.fs.pathSeparator .. spriteFileName .. ".json"
+    local allSlots = gatherAllSlots(skelData)
+
+
+
+    json = io.open(jsonFileName, "w")
+
+    json:write('{\n')
+
+    -- skeleton
+    json:write([["skeleton": { "images": "images/" }, ]] .. "\n")
+
+    local jsonCategories = {}
     -- bones
     -- json:write([[ "bones": [ { "name": "root" }	], ]])
-    json:write('"bones": [\n')
-    json:write(table.concat(bonesJson, ",\n"))
-    json:write("\n],\n")
-    -- slots
-    json:write('"slots": [\n')
-    json:write(table.concat(slotsJson, ",\n"))
-    json:write("\n],\n")
+    table.insert(jsonCategories, calculateBonesJson(allSlots))
+    table.insert(jsonCategories, calculateSlotJson(allSlots))
+    -- -- slots
+    -- json:write('"slots": [\n')
+    -- json:write(table.concat(slotsJson, ",\n"))
+    -- json:write("\n],\n")
 
-    -- skins
-    json:write('"skins": [')
-    -- json:write('"default": {')
-    json:write(table.concat(skinsJson, ","))
-    json:write('\n]')
+    -- -- skins
+    -- json:write('"skins": [')
+    -- -- json:write('"default": {')
+    -- json:write(table.concat(skinsJson, ","))
+    -- json:write('\n]')
 
+    json:write(table.concat(jsonCategories, ",\n"))
     -- json:write('"other-skins": [')
     -- -- json:write('"default": {')
     -- local skinStrings = {}
@@ -289,11 +276,70 @@ function captureLayers(layers, sprite, visibilityStates)
     -- json:write('\n]')
 
     -- close the json
-    json:write("}")
+    json:write("\n}")
 
     json:close()
 
     app.alert("Export completed!  Use file '" .. jsonFileName .. "' for importing into Spine.")
+end
+--[[
+Captures each layer as a separate PNG.  Ignores hidden layers.
+layers: The flattened view of the sprite layers
+sprite: The active sprite
+outputDir: the directory the sprite is saved in
+visibilityStates: the prior state of each layer's visibility (true / false)
+]]
+function captureLayers(layers, sprite, visibilityStates)
+    hideAllLayers(layers)
+
+
+
+
+    -- build arrays of json properties for skins and slots
+    -- we only include layers, not groups
+    local bonesJson = {}
+    local slotsJson = {}
+    local skinsJson = {}
+    local index = 1
+    local boneIdx = 1
+    local slotIdx = 1
+    bonesJson[boneIdx] = string.format([[ { "name": "root"}]])
+    boneIdx = boneIdx + 1
+    
+    local separator = app.fs.pathSeparator
+    
+    local layerCels = {}
+
+    local skinData = {}
+    local skinDirections = {}
+    local output = {}
+    output["slot_names"] = {}
+    skelData = {}
+    for i, layer in ipairs(layers) do
+        if (not layer.isGroup) then
+            goto continue
+        end
+
+        if (string.match(layer.name, "%[ignore%]")) then
+            goto continue
+        end
+
+        local skinName = string.match(layer.name, "%[skin%](%a+)")
+        if (not skinName) then
+            goto continue
+        end
+
+        if (skelData[skinName]) then
+            print(string.format([[ Have duplicate skins(%s) ]], skinName))
+            goto continue
+        end
+        local skinData = gatherSkinLayer(output, layer.layers, sprite, skinName)
+        skelData[skinName] = skinData
+
+        ::continue::
+    end
+    processJson(skelData, sprite)
+
 end
 
 --[[
