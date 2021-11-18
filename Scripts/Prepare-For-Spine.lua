@@ -219,7 +219,7 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
     local attachmentStrings = {}
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
 
-        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s", "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData["pngName"], sprite.bounds.width, sprite.bounds.height)
+        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s", "y": %d, "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData["pngName"], sprite.bounds.height / 4, sprite.bounds.width, sprite.bounds.height)
 
         table.insert(attachmentStrings, curString)
     end
