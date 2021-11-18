@@ -286,8 +286,8 @@ int Sprite_saveCopyAsSpecificFrames(lua_State* L)
   bool result = false;
   auto sprite = get_docobj<Sprite>(L, 1);
   const char* fn = luaL_checkstring(L, 2);
-  const int start = lua_tointeger(L, 3);
-  const int end = lua_tointeger(L, 4);
+  const int start = lua_tointeger(L, 3) - 1; // Export frames are 0 based
+  const int end = lua_tointeger(L, 4) - 1; // Export frames are 0 based
   if (fn && sprite) {
     Doc* doc = static_cast<Doc*>(sprite->document());
     app::Context* appCtx = App::instance()->context();
