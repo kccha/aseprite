@@ -68,19 +68,7 @@ function hideAllLayers(layers)
     end
 end
 
-local function addQuotes(value)
-    return "\"" .. value .. "\""
-end
-
-local function calculatePNGName(spriteFileName, slotName, skinName, frameNumber)
-    return spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__" .. frameNumber
-end
-
-local function calculateAttachment(spriteFileName, slotName, skinName, pngName, width, height, frameNumber)
-    return "              " ..  string.format([[ "%s": { "name": "%s", "y" : 16, "width": %d, "height": %d }]], slotName .. frameNumber, pngName, width, height)
-end
-
-local function gatherSlotLayer(output, layer, sprite, skinName, directionName, slotName)
+local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     local attachments = {}
     local attachmentFrameIdx = 1
     local lastFrameNumber = 1
@@ -112,7 +100,7 @@ local function gatherSlotLayer(output, layer, sprite, skinName, directionName, s
     return attachmentData
 end
 
-local function gatherDirectionLayer(output, layers, sprite, skinName, directionName)
+local function gatherDirectionLayer(layers, sprite, skinName, directionName)
     local directionData = {}
     for i, layer in ipairs(layers) do
 
@@ -128,7 +116,7 @@ local function gatherDirectionLayer(output, layers, sprite, skinName, directionN
             goto dircontinue
         end
 
-        local attachmentData = gatherSlotLayer(output, layer, sprite, skinName, directionName, slotName)
+        local attachmentData = gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
 
         directionData[slotName] = {attachData=attachmentData, refName=refName, flipX=flipX}
         ::dircontinue::
@@ -137,7 +125,7 @@ local function gatherDirectionLayer(output, layers, sprite, skinName, directionN
     return directionData
 end
 
-local function gatherSkinLayer(output, layers, sprite, skinName)
+local function gatherSkinLayer(layers, sprite, skinName)
     local skinData = {}
     for i, layer in ipairs(layers) do
         if (not layer.isGroup) then
@@ -153,7 +141,7 @@ local function gatherSkinLayer(output, layers, sprite, skinName)
             goto skincontinue
         end
 
-        local directionData = gatherDirectionLayer(output, layer.layers, sprite, skinName, directionName)
+        local directionData = gatherDirectionLayer(layer.layers, sprite, skinName, directionName)
         skinData[directionName] = directionData
         ::skincontinue::
     end
@@ -289,8 +277,6 @@ local function processJson(skelData, sprite)
     local jsonFileName = outputDir .. app.fs.pathSeparator .. spriteFileName .. ".json"
     local allSlots = gatherAllSlots(skelData)
 
-
-
     json = io.open(jsonFileName, "w")
 
     json:write('{\n')
@@ -312,38 +298,6 @@ local function processJson(skelData, sprite)
     app.alert("Export completed!  Use file '" .. jsonFileName .. "' for importing into Spine.")
 end
 
-local function processSkinSlotSprite(sprite, skinName, directionName, slotName, attachmentData)
-    local separator = app.fs.pathSeparator
-    local outputDir = app.fs.filePath(sprite.filename)
-    for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
-        if (not curAttachmentData.requiresPNGSave) then
-        -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-            goto spritecontinue
-        end
-
-        -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-        local pngPath = outputDir .. separator .. "images" .. separator .. curAttachmentData.pngName .. ".png"
-        local curLayer = curAttachmentData["layer"]
-        local curFrameNumber = curAttachmentData.attachFrameIdx
-        curLayer.isVisible = true
-        -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
-        --curLayer:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
-        curLayer.isVisible = false
-        ::spritecontinue::
-    end
-end
-local function processSkinDirectionSprite(sprite, skinName, directionName, directionData)
-    for slotName, attachmentData in pairs(directionData) do
-        processSkinSlotSprite(sprite, skinName, directionName, slotName, attachmentData)
-    end
-end
-
-local function processSkinSprite(sprite, skinName, skinData)
-    for directionName, directionData in pairs(skinData) do
-        processSkinDirectionSprite(sprite, skinName, directionName, directionData)
-    end
-end
-
 local function processSkeletonSkinSprite(sprite, skelData)
     local separator = app.fs.pathSeparator
     local outputDir = app.fs.filePath(sprite.filename)
@@ -352,37 +306,23 @@ local function processSkeletonSkinSprite(sprite, skelData)
             for slotName, dirData in pairs(directionData) do
                 if (not dirData.refName) then
                     for i, attachData in ipairs(dirData.attachData) do
-                        -- print(string.format('slotName(%s), layerName(%s), pngName(%s), frameIdx(%d)', attachData.slotName, attachData.layer.name, attachData.pngName, attachData.frameIdx))
-                        -- print(attachData.layer.name ..  slotName .. "  ".. attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
                         if (attachData.requiresPNGSave) then
-                            -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-                            -- goto spritecontinue
                             local pngPath = outputDir .. separator .. "images" .. separator .. attachData.pngName .. ".png"
                             local curLayer = attachData.layer
                             local curFrameNumber = attachData.frameIdx
                             curLayer.isVisible = true
-                            -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
                             sprite:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
                             curLayer.isVisible = false
                         end
-                        -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-
-                        -- ::spritecontinue::
                     end
                 end
             end
 
-            -- for slotName, attachmentData in pairs(directionData) do
-            --     if (not slotMap[slotName]) then
-            --         slotMap[slotName] = true
-            --         table.insert(slotData, slotName)
-            --     end
-            -- end
         end
-        -- processSkinSprite(sprite, skinName, skinData)
     end
 
 end
+
 local function processSprites(skelData, sprite)
     local outputDir = app.fs.filePath(sprite.filename)
     local spriteFileName = app.fs.fileTitle(sprite.filename)
@@ -400,28 +340,6 @@ visibilityStates: the prior state of each layer's visibility (true / false)
 function captureLayers(layers, sprite, visibilityStates)
     hideAllLayers(layers)
 
-
-
-
-    -- build arrays of json properties for skins and slots
-    -- we only include layers, not groups
-    local bonesJson = {}
-    local slotsJson = {}
-    local skinsJson = {}
-    local index = 1
-    local boneIdx = 1
-    local slotIdx = 1
-    bonesJson[boneIdx] = string.format([[ { "name": "root"}]])
-    boneIdx = boneIdx + 1
-    
-    local separator = app.fs.pathSeparator
-    
-    local layerCels = {}
-
-    local skinData = {}
-    local skinDirections = {}
-    local output = {}
-    output["slot_names"] = {}
     skelData = {}
     for i, layer in ipairs(layers) do
         if (not layer.isGroup) then
@@ -441,14 +359,14 @@ function captureLayers(layers, sprite, visibilityStates)
             print(string.format([[ Have duplicate skins(%s) ]], skinName))
             goto continue
         end
-        local skinData = gatherSkinLayer(output, layer.layers, sprite, skinName)
+        local skinData = gatherSkinLayer(layer.layers, sprite, skinName)
         skelData[skinName] = skinData
 
         ::continue::
     end
-    processJson(skelData, sprite)
-    processSprites(skelData, sprite)
 
+    processSprites(skelData, sprite)
+    processJson(skelData, sprite)
 end
 
 --[[
