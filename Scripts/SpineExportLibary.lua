@@ -206,14 +206,29 @@ local function calculateSlotJson(allSlots)
     return finalSlotString
 end
 
-local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, flipX, attachmentData)
+local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, flipX, attachmentData, type)
     local attachmentStrings = {}
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
         local additionalData = ''
         if (flipX) then
-            additionalData = ' "scaleX": -1, '
+            additionalData = additionalData .. ' "scaleX": -1, '
         end
-        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "y": %d, "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData, sprite.bounds.height / 4, sprite.bounds.width, sprite.bounds.height)
+        local yPos = sprite.bounds.height / 4
+        local xPos = 0
+        if (string.match(type, "weapon")) then
+            xPos = 0
+            yPos = 0
+            -- xPos = -0.5
+            -- yPos = 0.5
+            -- if (flipX) then
+            --     xPos = xPos * -1.0
+            -- end
+            -- if (flipY) then
+            --     yPos = yPos * -1.0
+            -- end
+        end
+        additionalData = additionalData .. string.format(' "x": %f, "y": %f, ', xPos, yPos)
+        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
         table.insert(attachmentStrings, curString)
     end
 
@@ -226,7 +241,7 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
 
 end
 
-local function calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData)
+local function calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData, type)
     local slotStrings = {}
     for slotName, dirData in pairs(directionData) do
         local curDirectionData = directionData
@@ -252,7 +267,7 @@ local function calculateSkinDirectionJson(sprite, skinName, directionName, direc
         end
 
         local curAttachData = curDirectionData[curSlotName].attachData
-        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, curAttachData))
+        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, curAttachData, type))
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
@@ -265,21 +280,21 @@ local function calculateSkinDirectionJson(sprite, skinName, directionName, direc
     return finalDirSkinString
 end
 
-local function calculateSkinJson(sprite, skinName, skinData)
+local function calculateSkinJson(sprite, skinName, skinData, type)
     local directionStrings = {}
     for directionName, directionData in pairs(skinData) do
-        local dirSkinString = calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData)
+        local dirSkinString = calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData, type)
         table.insert(directionStrings, dirSkinString)
     end
 
     return directionStrings
 end
 
-local function calculateSkeletonSkinJson(sprite, skelData)
+local function calculateSkeletonSkinJson(sprite, skelData, type)
     local skinStrings = {}
 
     for skinName, skinData in pairs(skelData) do
-        local curSkinStrings = calculateSkinJson(sprite, skinName, skinData)
+        local curSkinStrings = calculateSkinJson(sprite, skinName, skinData, type)
         table.move(curSkinStrings, 1, #curSkinStrings, #skinStrings + 1, skinStrings)
     end
 
@@ -290,7 +305,7 @@ local function calculateSkeletonSkinJson(sprite, skelData)
     return finalSkelSkinString
 end
 
-local function processJson(skelData, sprite)
+local function processJson(skelData, sprite, type)
     local outputDir = app.fs.filePath(sprite.filename)
     local spriteFileName = app.fs.fileTitle(sprite.filename)
     local jsonFileName = outputDir .. app.fs.pathSeparator .. spriteFileName .. ".json"
@@ -306,7 +321,7 @@ local function processJson(skelData, sprite)
     local jsonCategories = {}
     table.insert(jsonCategories, calculateBonesJson(allSlots))
     table.insert(jsonCategories, calculateSlotJson(allSlots))
-    table.insert(jsonCategories, calculateSkeletonSkinJson(sprite, skelData))
+    table.insert(jsonCategories, calculateSkeletonSkinJson(sprite, skelData, type))
     json:write(table.concat(jsonCategories, ",\n"))
 
     -- close the json
@@ -349,6 +364,15 @@ local function processSprites(skelData, sprite)
 
     processSkeletonSkinSprite(sprite, skelData)
 end
+
+local function calculateType(sprite)
+    local spriteFileName = app.fs.fileTitle(sprite.filename)
+    if (string.match(spriteFileName, "weapons")) then
+        return "weapon"
+    end
+    
+    return "standard"
+end
 --[[
 Captures each layer as a separate PNG.  Ignores hidden layers.
 layers: The flattened view of the sprite layers
@@ -385,7 +409,7 @@ function captureLayers(layers, sprite, visibilityStates)
     end
 
     processSprites(skelData, sprite)
-    processJson(skelData, sprite)
+    processJson(skelData, sprite, calculateType(sprite))
 end
 
 --[[
