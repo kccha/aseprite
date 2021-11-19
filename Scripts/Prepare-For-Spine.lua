@@ -100,14 +100,7 @@ local function gatherSlotLayer(output, layer, sprite, skinName, directionName, s
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, requiresPNGSave=true}
         attachmentFrameIdx = attachmentFrameIdx + 1
         lastPngName = pngName
-
         lastFrameNumber = curCel.frameNumber
-
-        -- local pngPath = outputDir .. separator .. "images" .. separator .. pngName .. ".png"
-        -- -- print(pngPath)
-        -- subLayer.isVisible = true
-        -- sprite:saveCopyAsSpecificFrames(pngPath, curCel.frameNumber, curCel.frameNumber)
-        -- subLayer.isVisible = false
     end
 
     while attachmentFrameIdx <= #sprite.frames do
@@ -115,9 +108,6 @@ local function gatherSlotLayer(output, layer, sprite, skinName, directionName, s
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, requiresPNGSave=false}
         attachmentFrameIdx = attachmentFrameIdx + 1
     end
-    -- for i, attachData in ipairs(attachmentData) do
-    --     print(attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
-    -- end
 
     return attachmentData
 end
@@ -132,10 +122,7 @@ local function gatherDirectionLayer(output, layers, sprite, skinName, directionN
         end
 
         local refName = string.match(layer.name, "%[ref:(%w+)%]")
-        if (refName) then
-            print("Have reference: " .. refName)
-        end
-
+        local flipX = string.match(layer.name, "%[flipx%]")
         if (directionData[slotName]) then
             print(string.format([[ Has duplicate slot(%s) for skin(%s) direction(%s) ]], slotName, skinName, directionName))
             goto dircontinue
@@ -143,7 +130,7 @@ local function gatherDirectionLayer(output, layers, sprite, skinName, directionN
 
         local attachmentData = gatherSlotLayer(output, layer, sprite, skinName, directionName, slotName)
 
-        directionData[slotName] = attachmentData
+        directionData[slotName] = {attachData=attachmentData, refName=refName, flipX=flipX}
         ::dircontinue::
     end
 
@@ -226,12 +213,14 @@ local function calculateSlotJson(allSlots)
     return finalSlotString
 end
 
-local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, attachmentData)
+local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, flipX, attachmentData)
     local attachmentStrings = {}
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
-
-        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s", "y": %d, "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData["pngName"], sprite.bounds.height / 4, sprite.bounds.width, sprite.bounds.height)
-
+        local additionalData = ''
+        if (flipX) then
+            additionalData = ' "scaleX": -1, '
+        end
+        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "y": %d, "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData, sprite.bounds.height / 4, sprite.bounds.width, sprite.bounds.height)
         table.insert(attachmentStrings, curString)
     end
 
@@ -239,16 +228,24 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
     finalSlotString = finalSlotString ..  table.concat(attachmentStrings, ",\n")
     finalSlotString = finalSlotString .. '\n'
     finalSlotString = finalSlotString .. tabs(3) .. '}'
-    -- print(finalSlotString)
 
     return finalSlotString
 
 end
 
-local function calculateSkinDirectionJson(sprite, skinName, directionName, directionData)
+local function calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData)
     local slotStrings = {}
-    for slotName, attachmentData in pairs(directionData) do
-        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, attachmentData))
+    for slotName, dirData in pairs(directionData) do
+        if (dirData.refName) then
+            if (skinData[dirData.refName][slotName].attachData) then
+                table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, skinData[dirData.refName][slotName].attachData))
+            else
+                print("Invalid setup. Make sure the other direction ref has the same slot in the same skin. Unable to find ref: " .. dirData.refName)
+            end
+        else
+            table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, dirData.attachData))
+        end
+
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
@@ -264,8 +261,7 @@ end
 local function calculateSkinJson(sprite, skinName, skinData)
     local directionStrings = {}
     for directionName, directionData in pairs(skinData) do
-        -- print(skinName .. "   " .. directionName)
-        local dirSkinString = calculateSkinDirectionJson(sprite, skinName, directionName, directionData)
+        local dirSkinString = calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData)
         table.insert(directionStrings, dirSkinString)
     end
 
@@ -353,24 +349,26 @@ local function processSkeletonSkinSprite(sprite, skelData)
     local outputDir = app.fs.filePath(sprite.filename)
     for skinName, skinData in pairs(skelData) do
         for directionName, directionData in pairs(skinData) do
-            for slotName, attachmentData in pairs(directionData) do
-                for i, attachData in ipairs(attachmentData) do
-                    -- print(string.format('slotName(%s), layerName(%s), pngName(%s), frameIdx(%d)', attachData.slotName, attachData.layer.name, attachData.pngName, attachData.frameIdx))
-                    -- print(attachData.layer.name ..  slotName .. "  ".. attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
-                    if (attachData.requiresPNGSave) then
-                        -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-                        -- goto spritecontinue
-                        local pngPath = outputDir .. separator .. "images" .. separator .. attachData.pngName .. ".png"
-                        local curLayer = attachData.layer
-                        local curFrameNumber = attachData.frameIdx
-                        curLayer.isVisible = true
-                        -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
-                        sprite:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
-                        curLayer.isVisible = false
-                    end
-                    -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
+            for slotName, dirData in pairs(directionData) do
+                if (not dirData.refName) then
+                    for i, attachData in ipairs(dirData.attachData) do
+                        -- print(string.format('slotName(%s), layerName(%s), pngName(%s), frameIdx(%d)', attachData.slotName, attachData.layer.name, attachData.pngName, attachData.frameIdx))
+                        -- print(attachData.layer.name ..  slotName .. "  ".. attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
+                        if (attachData.requiresPNGSave) then
+                            -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
+                            -- goto spritecontinue
+                            local pngPath = outputDir .. separator .. "images" .. separator .. attachData.pngName .. ".png"
+                            local curLayer = attachData.layer
+                            local curFrameNumber = attachData.frameIdx
+                            curLayer.isVisible = true
+                            -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
+                            sprite:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
+                            curLayer.isVisible = false
+                        end
+                        -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
 
-                    -- ::spritecontinue::
+                        -- ::spritecontinue::
+                    end
                 end
             end
 
@@ -449,7 +447,7 @@ function captureLayers(layers, sprite, visibilityStates)
         ::continue::
     end
     processJson(skelData, sprite)
-    -- processSprites(skelData, sprite)
+    processSprites(skelData, sprite)
 
 end
 
