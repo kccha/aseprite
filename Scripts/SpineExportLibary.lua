@@ -252,7 +252,7 @@ local function calculateSkinDirectionJson(sprite, skinName, directionName, direc
         end
 
         local curAttachData = curDirectionData[curSlotName].attachData
-        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, curSlotName, dirData.flipX, curAttachData))
+        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, curAttachData))
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
