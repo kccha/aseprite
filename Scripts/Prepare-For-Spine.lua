@@ -84,20 +84,22 @@ local function gatherSlotLayer(output, layer, sprite, skinName, directionName, s
     local attachments = {}
     local attachmentFrameIdx = 1
     local lastFrameNumber = 1
+    local lastPngName = ""
     local attachmentData = {}
     local spriteFileName = app.fs.fileTitle(sprite.filename)
 
     for celIdx, curCel in ipairs(layer.celsNoDuplicates) do
         while attachmentFrameIdx < curCel.frameNumber do
-            local pngName = calculatePNGName(spriteFileName, slotName, skinName, lastFrameNumber)
+            local pngName = lastPngName
             attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, requiresPNGSave=false}
             attachmentFrameIdx = attachmentFrameIdx + 1
         end
 
 
-        local pngName = spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__" .. curCel.frameNumber
+        local pngName = spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__"  .. directionName .. "__" .. curCel.frameNumber
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, requiresPNGSave=true}
         attachmentFrameIdx = attachmentFrameIdx + 1
+        lastPngName = pngName
 
         lastFrameNumber = curCel.frameNumber
 
@@ -109,10 +111,13 @@ local function gatherSlotLayer(output, layer, sprite, skinName, directionName, s
     end
 
     while attachmentFrameIdx <= #sprite.frames do
-        local pngName = calculatePNGName(spriteFileName, slotName, skinName, lastFrameNumber)
+        local pngName = lastPngName
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, requiresPNGSave=false}
         attachmentFrameIdx = attachmentFrameIdx + 1
     end
+    -- for i, attachData in ipairs(attachmentData) do
+    --     print(attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
+    -- end
 
     return attachmentData
 end
@@ -168,6 +173,7 @@ local function gatherAllSlots(skelData)
     local slotMap = {}
     for skinName, skinData in pairs(skelData) do
         for directionName, directionData in pairs(skinData) do
+
             for slotName, attachmentData in pairs(directionData) do
                 if (not slotMap[slotName]) then
                     slotMap[slotName] = true
@@ -309,17 +315,17 @@ local function processSkinSlotSprite(sprite, skinName, directionName, slotName, 
     local separator = app.fs.pathSeparator
     local outputDir = app.fs.filePath(sprite.filename)
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
-        if (not curAttachmentData["requiresPNGSave"]) then
-        print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
+        if (not curAttachmentData.requiresPNGSave) then
+        -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
             goto spritecontinue
         end
 
         -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
-        local pngPath = outputDir .. separator .. "images" .. separator .. curAttachmentData["pngName"] .. ".png"
+        local pngPath = outputDir .. separator .. "images" .. separator .. curAttachmentData.pngName .. ".png"
         local curLayer = curAttachmentData["layer"]
-        local curFrameNumber = curAttachmentData["frameIdx"]
+        local curFrameNumber = curAttachmentData.attachFrameIdx
         curLayer.isVisible = true
-        print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), layerName(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, curLayer.name, frameNumber))
+        -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
         --curLayer:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
         curLayer.isVisible = false
         ::spritecontinue::
@@ -338,9 +344,41 @@ local function processSkinSprite(sprite, skinName, skinData)
 end
 
 local function processSkeletonSkinSprite(sprite, skelData)
+    local separator = app.fs.pathSeparator
+    local outputDir = app.fs.filePath(sprite.filename)
     for skinName, skinData in pairs(skelData) do
-        processSkinSprite(sprite, skinName, skinData)
+        for directionName, directionData in pairs(skinData) do
+            for slotName, attachmentData in pairs(directionData) do
+                for i, attachData in ipairs(attachmentData) do
+                    -- print(string.format('slotName(%s), layerName(%s), pngName(%s), frameIdx(%d)', attachData.slotName, attachData.layer.name, attachData.pngName, attachData.frameIdx))
+                    -- print(attachData.layer.name ..  slotName .. "  ".. attachData.pngName .. "frame:" .. attachData.attachFrameIdx)
+                    if (attachData.requiresPNGSave) then
+                        -- print(string.format('No PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
+                        -- goto spritecontinue
+                        local pngPath = outputDir .. separator .. "images" .. separator .. attachData.pngName .. ".png"
+                        local curLayer = attachData.layer
+                        local curFrameNumber = attachData.frameIdx
+                        curLayer.isVisible = true
+                        -- print(string.format('PNG Save skinName(%s), dirName(%s), slotName(%s), pngPath(%s), frameNumber(%d)', skinName, directionName, slotName, pngPath, frameNumber))
+                        sprite:saveCopyAsSpecificFrames(pngPath, curFrameNumber, curFrameNumber)
+                        curLayer.isVisible = false
+                    end
+                    -- print(string.format('Has PNG Save skinName(%s), dirName(%s), slotName(%s)', skinName, directionName, slotName))
+
+                    -- ::spritecontinue::
+                end
+            end
+
+            -- for slotName, attachmentData in pairs(directionData) do
+            --     if (not slotMap[slotName]) then
+            --         slotMap[slotName] = true
+            --         table.insert(slotData, slotName)
+            --     end
+            -- end
+        end
+        -- processSkinSprite(sprite, skinName, skinData)
     end
+
 end
 local function processSprites(skelData, sprite)
     local outputDir = app.fs.filePath(sprite.filename)
