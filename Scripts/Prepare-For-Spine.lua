@@ -126,9 +126,14 @@ local function gatherDirectionLayer(output, layers, sprite, skinName, directionN
     local directionData = {}
     for i, layer in ipairs(layers) do
 
-        local slotName = string.match(layer.name, "%[slot%](%a+)")
+        local slotName = string.match(layer.name, "%](%w+)$")
         if (not slotName) then
             goto dircontinue
+        end
+
+        local refName = string.match(layer.name, "%[ref:(%w+)%]")
+        if (refName) then
+            print("Have reference: " .. refName)
         end
 
         if (directionData[slotName]) then
@@ -444,7 +449,7 @@ function captureLayers(layers, sprite, visibilityStates)
         ::continue::
     end
     processJson(skelData, sprite)
-    processSprites(skelData, sprite)
+    -- processSprites(skelData, sprite)
 
 end
 
