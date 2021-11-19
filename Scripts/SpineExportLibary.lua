@@ -137,7 +137,7 @@ local function gatherSkinLayer(layers, sprite, skinName)
             goto skincontinue
         end
 
-        local directionName = string.match(layer.name, "%[dir%](%a+)")
+        local directionName = string.match(layer.name, "%[dir%](%w+)")
         if (not directionName) then
             goto skincontinue
         end
@@ -393,7 +393,7 @@ function captureLayers(layers, sprite, visibilityStates)
             goto continue
         end
 
-        local skinName = string.match(layer.name, "%[skin%](%a+)")
+        local skinName = string.match(layer.name, "%[skin%](%w+)")
         if (not skinName) then
             goto continue
         end
