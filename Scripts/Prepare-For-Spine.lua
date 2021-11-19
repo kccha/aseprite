@@ -68,6 +68,11 @@ function hideAllLayers(layers)
     end
 end
 
+local function calculatePNGName(spriteFileName, skinName, directionName, slotName, frameNumber)
+    return spriteFileName .. "__" .. skinName .. "__" .. directionName .. "__" .. slotName .. "__"  .. frameNumber
+end
+
+
 local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     local attachments = {}
     local attachmentFrameIdx = 1
@@ -83,8 +88,7 @@ local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
             attachmentFrameIdx = attachmentFrameIdx + 1
         end
 
-
-        local pngName = spriteFileName .. "__" .. slotName .. "__" .. skinName .. "__"  .. directionName .. "__" .. curCel.frameNumber
+        local pngName = calculatePNGName(spriteFileName, skinName, directionName, slotName, curCel.frameNumber)
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, requiresPNGSave=true}
         attachmentFrameIdx = attachmentFrameIdx + 1
         lastPngName = pngName
