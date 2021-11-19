@@ -113,7 +113,8 @@ local function gatherDirectionLayer(layers, sprite, skinName, directionName)
             goto dircontinue
         end
 
-        local refName = string.match(layer.name, "%[ref:(%w+)%]")
+        local dirRefName = string.match(layer.name, "%[dref:(%w+)%]")
+        local slotRefName = string.match(layer.name, "%[sref:(%w+)%]")
         local flipX = string.match(layer.name, "%[flipx%]")
         if (directionData[slotName]) then
             print(string.format([[ Has duplicate slot(%s) for skin(%s) direction(%s) ]], slotName, skinName, directionName))
@@ -122,7 +123,7 @@ local function gatherDirectionLayer(layers, sprite, skinName, directionName)
 
         local attachmentData = gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
 
-        directionData[slotName] = {attachData=attachmentData, refName=refName, flipX=flipX}
+        directionData[slotName] = {attachData=attachmentData, dirRefName=dirRefName, slotRefName=slotRefName, flipX=flipX}
         ::dircontinue::
     end
 
@@ -228,16 +229,30 @@ end
 local function calculateSkinDirectionJson(sprite, skinName, directionName, directionData, skinData)
     local slotStrings = {}
     for slotName, dirData in pairs(directionData) do
-        if (dirData.refName) then
-            if (skinData[dirData.refName][slotName].attachData) then
-                table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, skinData[dirData.refName][slotName].attachData))
-            else
-                print("Invalid setup. Make sure the other direction ref has the same slot in the same skin. Unable to find ref: " .. dirData.refName)
-            end
-        else
-            table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, slotName, dirData.flipX, dirData.attachData))
+        local curDirectionData = directionData
+        local curSlotName = slotName
+
+        if (dirData.slotRefName) then
+            curSlotName = dirData.slotRefName
         end
 
+        if (dirData.dirRefName) then
+            curDirectionData = skinData[dirData.dirRefName]
+        end
+
+        if (not curDirectionData) then
+            print(string.format('Unable to find direction(%s) cannot replace reference', dirData.refName))
+            curDirectionData = directionData
+        end
+
+        if (not curDirectionData[curSlotName]) then
+            print(string.format('Unable to find direction(%s) with slot(%s) cannot replace reference', dirData.refName, curSlotName))
+            curSlotName = slotName
+            curDirectionData = directionData
+        end
+
+        local curAttachData = curDirectionData[curSlotName].attachData
+        table.insert(slotStrings, calculateSkinSlotJson(sprite, skinName, directionName, curSlotName, dirData.flipX, curAttachData))
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
@@ -308,7 +323,7 @@ local function processSkeletonSkinSprite(sprite, skelData)
     for skinName, skinData in pairs(skelData) do
         for directionName, directionData in pairs(skinData) do
             for slotName, dirData in pairs(directionData) do
-                if (not dirData.refName) then
+                if (not dirData.dirRefName and not dirData.slotRefName) then
                     for i, attachData in ipairs(dirData.attachData) do
                         if (attachData.requiresPNGSave) then
                             local pngPath = outputDir .. separator .. "images" .. separator .. attachData.pngName .. ".png"
@@ -383,34 +398,3 @@ function restoreVisibilities(layers, visibilityStates)
         layer.isVisible = visibilityStates[i]
     end
 end
-
--- -----------------------------------------------[[ Main Execution ]]-----------------------------------------------
--- local activeSprite = app.activeSprite
-
-
--- -- print("----------New Run----------------")
--- if (activeSprite == nil) then
---     -- If user has no active sprite selected in the UI
---     app.alert("Please click the sprite you'd like to export")
---     return
--- elseif (activeSprite.filename == "") then
---     -- If the user has created a sprite, but never saved it
---     app.alert("Please save the current sprite before running this script")
---     return
--- end
-
--- local flattenedLayers = getLayers(activeSprite, {})
-
--- -- if (containsDuplicates(flattenedLayers)) then
--- --     return
--- -- end
-
--- -- Get an array containing each layer index and whether it is currently visible
--- local visibilities = captureVisibilityStates(flattenedLayers)
-
--- -- Saves each sprite layer as a separate .png under the 'images' subdirectory
--- -- and write out the json file for importing into spine.
--- captureLayers(flattenedLayers, activeSprite, visibilities)
-
--- -- Restore the layer's visibilities to how they were before
--- restoreVisibilities(flattenedLayers, visibilities)
