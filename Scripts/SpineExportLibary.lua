@@ -216,16 +216,16 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
         local yPos = sprite.bounds.height / 4
         local xPos = 0
         if (string.match(type, "weapon")) then
-            xPos = 0
-            yPos = 0
-            -- xPos = -0.5
-            -- yPos = 0.5
-            -- if (flipX) then
-            --     xPos = xPos * -1.0
-            -- end
-            -- if (flipY) then
-            --     yPos = yPos * -1.0
-            -- end
+            -- xPos = 0
+            -- yPos = 0
+            xPos = -0.5
+            yPos = 0.5
+            if (flipX) then
+                xPos = xPos * -1.0
+            end
+            if (flipY) then
+                yPos = yPos * -1.0
+            end
         end
         additionalData = additionalData .. string.format(' "x": %f, "y": %f, ', xPos, yPos)
         local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
