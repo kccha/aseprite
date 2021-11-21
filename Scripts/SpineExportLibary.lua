@@ -163,6 +163,33 @@ local function gatherSkinLayer(layers, sprite, skinName)
 
     return skinData
 end
+
+local function gatherSkeletonData(outSkelData, layers, sprite)
+    for i, layer in ipairs(layers) do
+        if (not layer.isGroup) then
+            goto groupcontinue
+        end
+
+        if (string.match(layer.name, "%[ignore%]")) then
+            goto groupcontinue
+        end
+
+        local skinName = string.match(layer.name, "%[skin%]([_%w]+)")
+        if (not skinName) then
+            goto groupcontinue
+        end
+
+        if (outSkelData[skinName]) then
+            print(string.format([[ Have duplicate skins(%s) ]], skinName))
+            goto groupcontinue
+        end
+        local skinData = gatherSkinLayer(layer.layers, sprite, skinName)
+        outSkelData[skinName] = skinData
+
+        ::groupcontinue::
+    end
+end
+
 local function gatherAllSlots(skelData)
     local slotData = {}
     local slotMap = {}
@@ -396,29 +423,7 @@ function captureLayers(layers, sprite, visibilityStates)
     hideAllLayers(layers)
 
     skelData = {}
-    for i, layer in ipairs(layers) do
-        if (not layer.isGroup) then
-            goto continue
-        end
-
-        if (string.match(layer.name, "%[ignore%]")) then
-            goto continue
-        end
-
-        local skinName = string.match(layer.name, "%[skin%]([_%w]+)")
-        if (not skinName) then
-            goto continue
-        end
-
-        if (skelData[skinName]) then
-            print(string.format([[ Have duplicate skins(%s) ]], skinName))
-            goto continue
-        end
-        local skinData = gatherSkinLayer(layer.layers, sprite, skinName)
-        skelData[skinName] = skinData
-
-        ::continue::
-    end
+    gatherSkeletonData(skelData, layers, sprite)
 
     processSprites(skelData, sprite)
     processJson(skelData, sprite, calculateType(sprite))
