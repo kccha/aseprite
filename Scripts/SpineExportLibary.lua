@@ -216,8 +216,6 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
         local yPos = sprite.bounds.height / 4
         local xPos = 0
         if (string.match(type, "weapon")) then
-            -- xPos = 0
-            -- yPos = 0
             xPos = -0.5
             yPos = 0.5
             if (flipX) then
@@ -226,6 +224,9 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
             if (flipY) then
                 yPos = yPos * -1.0
             end
+        elseif (string.match(type, "shield")) then
+            xPos = 0
+            yPos = 0
         end
         additionalData = additionalData .. string.format(' "x": %f, "y": %f, ', xPos, yPos)
         local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
@@ -369,8 +370,9 @@ local function calculateType(sprite)
     local spriteFileName = app.fs.fileTitle(sprite.filename)
     if (string.match(spriteFileName, "weapons")) then
         return "weapon"
+    elseif (string.match(spriteFileName, "shields")) then
+        return "shield"
     end
-    
     return "standard"
 end
 --[[
@@ -393,7 +395,7 @@ function captureLayers(layers, sprite, visibilityStates)
             goto continue
         end
 
-        local skinName = string.match(layer.name, "%[skin%](%w+)")
+        local skinName = string.match(layer.name, "%[skin%]([_%w]+)")
         if (not skinName) then
             goto continue
         end
