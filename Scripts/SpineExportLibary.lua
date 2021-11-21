@@ -94,12 +94,12 @@ local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     for celIdx, curCel in ipairs(layer.celsNoDuplicates) do
         while attachmentFrameIdx < curCel.frameNumber do
             local pngName = lastPngName
-            attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, requiresPNGSave=false}
+            attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, directionName=directionName, requiresPNGSave=false}
             attachmentFrameIdx = attachmentFrameIdx + 1
         end
 
         local pngName = calculatePNGName(spriteFileName, skinName, directionName, slotName, curCel.frameNumber)
-        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, requiresPNGSave=true}
+        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, directionName=directionName, requiresPNGSave=true}
         attachmentFrameIdx = attachmentFrameIdx + 1
         lastPngName = pngName
         lastFrameNumber = curCel.frameNumber
@@ -107,7 +107,7 @@ local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
 
     while attachmentFrameIdx <= #sprite.frames do
         local pngName = lastPngName
-        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, requiresPNGSave=false}
+        attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, directionName=directionName, requiresPNGSave=false}
         attachmentFrameIdx = attachmentFrameIdx + 1
     end
 
@@ -243,8 +243,18 @@ local function calculateSlotJson(allSlots)
     return finalSlotString
 end
 
+
+local function calculateAnimSlotDirectionName(spriteName, slotName, directionName)
+    if (string.match(directionName, "None")) then
+        return spriteName .. sep() .. slotName
+    end
+
+    return spriteName .. sep() .. slotName .. sep() .. directionName
+end
+
 local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, flipX, attachmentData, type)
     local attachmentStrings = {}
+    local spriteFileName = app.fs.fileTitle(sprite.filename)
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
         local additionalData = ''
         if (flipX) then
@@ -266,7 +276,7 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
             yPos = 0
         end
         additionalData = additionalData .. string.format(' "x": %f, "y": %f, ', xPos, yPos)
-        local curString = tabs(4) .. string.format([["%s%d": { "name": "%s",%s "width": %d, "height": %d}]], slotName, attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
+        local curString = tabs(4) .. string.format([["%s%s%d": { "name": "%s",%s "width": %d, "height": %d}]], calculateAnimSlotDirectionName(spriteFileName, slotName, directionName), sep(), attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
         table.insert(attachmentStrings, curString)
     end
 
@@ -309,7 +319,7 @@ local function calculateSkinDirectionJson(sprite, skinName, directionName, direc
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
-    finalDirSkinString = finalDirSkinString .. tabs(2) .. string.format('"name": "%s",\n', calculateSkinDirectionName(skinName, directionName))
+    finalDirSkinString = finalDirSkinString .. tabs(2) .. string.format('"name": "%s",\n', skinName)
     finalDirSkinString = finalDirSkinString .. tabs(2) .. '"attachments": {\n'
     finalDirSkinString = finalDirSkinString .. table.concat(slotStrings, ",\n")
     finalDirSkinString = finalDirSkinString .. "\n"
