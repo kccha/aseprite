@@ -68,10 +68,20 @@ function hideAllLayers(layers)
     end
 end
 
-local function calculatePNGName(spriteFileName, skinName, directionName, slotName, frameNumber)
-    return spriteFileName .. "__" .. skinName .. "__" .. directionName .. "__" .. slotName .. "__"  .. frameNumber
+local function sep()
+    return "_"
+end
+local function calculateSkinDirectionName(skinName, directionName)
+    if (string.match(directionName, "None")) then
+        return skinName
+    end
+
+    return skinName .. sep() .. directionName
 end
 
+local function calculatePNGName(spriteFileName, skinName, directionName, slotName, frameNumber)
+    return spriteFileName .. sep() .. calculateSkinDirectionName(skinName, directionName) .. sep() .. slotName .. sep() .. frameNumber
+end
 
 local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     local attachments = {}
@@ -272,7 +282,7 @@ local function calculateSkinDirectionJson(sprite, skinName, directionName, direc
     end
 
     local finalDirSkinString = tabs(1) .. "{\n"
-    finalDirSkinString = finalDirSkinString .. tabs(2) .. string.format('"name": "%s_%s",\n', skinName, directionName)
+    finalDirSkinString = finalDirSkinString .. tabs(2) .. string.format('"name": "%s",\n', calculateSkinDirectionName(skinName, directionName))
     finalDirSkinString = finalDirSkinString .. tabs(2) .. '"attachments": {\n'
     finalDirSkinString = finalDirSkinString .. table.concat(slotStrings, ",\n")
     finalDirSkinString = finalDirSkinString .. "\n"
