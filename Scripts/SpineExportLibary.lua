@@ -83,6 +83,19 @@ local function calculatePNGName(spriteFileName, skinName, directionName, slotNam
     return spriteFileName .. sep() .. calculateSkinDirectionName(skinName, directionName) .. sep() .. slotName .. sep() .. frameNumber
 end
 
+
+local function isLayerCelEmpty(layer, frameIdx) 
+    local curCel = layer:cel(frameIdx)
+    if (not curCel) then
+        return true
+    end
+    if (not curCel.image) then
+        return true
+    end
+
+    return curCel.image:isEmpty()
+end
+
 local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     local attachments = {}
     local attachmentFrameIdx = 1
@@ -94,11 +107,19 @@ local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
     for celIdx, curCel in ipairs(layer.celsNoDuplicates) do
         while attachmentFrameIdx < curCel.frameNumber do
             local pngName = lastPngName
+            -- Skip empty cels
+            if isLayerCelEmpty(layer, attachmentFrameIdx) then
+                pngName = ""
+            end
             attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, directionName=directionName, requiresPNGSave=false}
             attachmentFrameIdx = attachmentFrameIdx + 1
         end
 
         local pngName = calculatePNGName(spriteFileName, skinName, directionName, slotName, curCel.frameNumber)
+        -- Skip empty cels
+        if isLayerCelEmpty(layer, attachmentFrameIdx) then
+            pngName = ""
+        end
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=curCel.frameNumber, layer=layer, directionName=directionName, requiresPNGSave=true}
         attachmentFrameIdx = attachmentFrameIdx + 1
         lastPngName = pngName
@@ -107,6 +128,10 @@ local function gatherSlotLayer(layer, sprite, skinName, directionName, slotName)
 
     while attachmentFrameIdx <= #sprite.frames do
         local pngName = lastPngName
+        -- Skip empty cels
+        if isLayerCelEmpty(layer, attachmentFrameIdx) then
+            pngName = ""
+        end
         attachmentData[attachmentFrameIdx] = { slotName=slotName, pngName=pngName, frameIdx=lastFrameNumber, layer=layer, directionName=directionName, requiresPNGSave=false}
         attachmentFrameIdx = attachmentFrameIdx + 1
     end
