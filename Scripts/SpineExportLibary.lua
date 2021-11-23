@@ -256,11 +256,16 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
     local attachmentStrings = {}
     local spriteFileName = app.fs.fileTitle(sprite.filename)
     for attachmentIdx, curAttachmentData in ipairs(attachmentData) do
+
+        if (not curAttachmentData.pngName or curAttachmentData.pngName == "") then
+            goto skinslotjsoncontinue
+        end
         local additionalData = ''
         if (flipX) then
             additionalData = additionalData .. ' "scaleX": -1, '
         end
-        local yPos = sprite.bounds.height / 4
+
+        local yPos = 16
         local xPos = 0
         if (string.match(type, "weapon")) then
             xPos = -0.5
@@ -278,6 +283,8 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
         additionalData = additionalData .. string.format(' "x": %f, "y": %f, ', xPos, yPos)
         local curString = tabs(4) .. string.format([["%s%s%d": { "name": "%s",%s "width": %d, "height": %d}]], calculateAnimSlotDirectionName(spriteFileName, slotName, directionName), sep(), attachmentIdx, curAttachmentData.pngName, additionalData,  sprite.bounds.width, sprite.bounds.height)
         table.insert(attachmentStrings, curString)
+
+        ::skinslotjsoncontinue::
     end
 
     local finalSlotString = tabs(3) .. string.format('"%s": {\n',  slotName)
