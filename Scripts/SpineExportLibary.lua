@@ -301,6 +301,9 @@ local function calculateSkinSlotJson(sprite, skinName, directionName, slotName, 
             if (flipY) then
                 yPos = yPos * -1.0
             end
+        elseif (string.match(type, "head")) then
+            xPos = 0
+            yPos = 0
         elseif (string.match(type, "shield")) then
             xPos = 0
             yPos = 0
@@ -449,6 +452,8 @@ local function calculateType(sprite)
     local spriteFileName = app.fs.fileTitle(sprite.filename)
     if (string.match(spriteFileName, "weapons")) then
         return "weapon"
+    elseif (string.match(spriteFileName, "heads")) then
+        return "head"
     elseif (string.match(spriteFileName, "shields")) then
         return "shield"
     end
